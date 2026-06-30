@@ -131,6 +131,11 @@ model Message {
   replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies     Message[] @relation("MessageReplies")
   reactions   Reaction[]
+
+  @@index([channelId])
+  @@index([receiverId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Reaction {

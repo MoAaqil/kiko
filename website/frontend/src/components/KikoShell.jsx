@@ -1613,7 +1613,7 @@ export default function KikoShell() {
                   <span>TEXT CHANNELS</span>
                   <Plus size={14} style={{ cursor: 'pointer' }} onClick={() => { setChannelType('TEXT'); setNewChannelOpen(true); }} />
                 </div>
-                {activeServer?.channels.filter(c => c.type === 'TEXT').map(ch => (
+                {(activeServer?.channels || []).filter(c => c.type === 'TEXT').map(ch => (
                   <div 
                     key={ch.id} 
                     style={{
@@ -1634,7 +1634,7 @@ export default function KikoShell() {
                   <span>VOICE ROOMS</span>
                   <Plus size={14} style={{ cursor: 'pointer' }} onClick={() => { setChannelType('VOICE'); setNewChannelOpen(true); }} />
                 </div>
-                {activeServer?.channels.filter(c => c.type === 'VOICE').map(ch => {
+                {(activeServer?.channels || []).filter(c => c.type === 'VOICE').map(ch => {
                   const roomUsers = voiceChannelsState[ch.id] || [];
                   return (
                     <div key={ch.id} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1676,7 +1676,7 @@ export default function KikoShell() {
                   <span>LIVE STREAMS</span>
                   <Plus size={14} style={{ cursor: 'pointer' }} onClick={() => { setChannelType('STREAM'); setNewChannelOpen(true); }} />
                 </div>
-                {activeServer?.channels.filter(c => c.type === 'STREAM').map(ch => {
+                {(activeServer?.channels || []).filter(c => c.type === 'STREAM').map(ch => {
                   const roomUsers = voiceChannelsState[ch.id] || [];
                   return (
                     <div key={ch.id} style={{ display: 'flex', flexDirection: 'column' }}>
