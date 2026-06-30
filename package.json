@@ -1,0 +1,20 @@
+{
+  "name": "kiko",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "website/backend",
+    "website/frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "dev": "concurrently --kill-others \"npm run dev --workspace=website/backend\" \"npm run dev --workspace=website/frontend\"",
+    "build": "npm run build --workspace=website/frontend",
+    "prisma:generate": "npm run prisma:generate --workspace=website/backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace=website/backend",
+    "prisma:seed": "npm run prisma:seed --workspace=website/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

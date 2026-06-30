@@ -1,0 +1,32 @@
+# Dependency directories
+node_modules/
+website/frontend/node_modules/
+website/backend/node_modules/
+
+# Build outputs
+website/frontend/dist/
+website/frontend/build/
+
+# Environment files
+.env
+.env.production
+.env.vercel.pull
+.env.vercel.production.pull
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+website/frontend/.env
+website/frontend/.env.production
+website/frontend/.env.vercel.pull
+website/frontend/.env.vercel.production.pull
+website/backend/.env
+website/backend/.env.production
+
+# Vercel configuration
+.vercel/
+
+# System files
+.DS_Store
+Thumbs.db
+*.log

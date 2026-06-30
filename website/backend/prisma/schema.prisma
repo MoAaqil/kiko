@@ -1,0 +1,146 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                    String         @id @default(auto()) @map("_id") @db.ObjectId
+  email                 String         @unique
+  passwordHash          String
+  username              String         @unique
+  displayName           String?
+  avatarUrl             String?
+  bannerUrl             String?
+  bio                   String?
+  status                String         @default("offline") // online, idle, dnd, offline
+  customStatus          String?
+  lastSeen              DateTime       @default(now())
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  // NEW custom fields for Discord-like profile customizer
+  bannerColor           String         @default("#2c2f33")
+  avatarDecoration      String         @default("")
+  profileEffect         String         @default("")
+  favoriteGame          String         @default("")
+  gamesInRotation       String         @default("")
+  autoDeleteDuration    Int            @default(0) // auto delete timer in minutes
+
+  sentFriendRequests     Friend[]       @relation("SentRequests")
+  receivedFriendRequests Friend[]       @relation("ReceivedRequests")
+  serverMemberships      ServerMember[]
+  ownedServers          Server[]       @relation("ServerOwner")
+  messages              Message[]      @relation("UserMessages")
+  receivedDMs           Message[]      @relation("ReceivedDMs")
+  reactions             Reaction[]
+}
+
+model Friend {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  friendId  String   @db.ObjectId
+  status    String   // PENDING_SENT, PENDING_RECEIVED, ACCEPTED, BLOCKED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User @relation("SentRequests", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("ReceivedRequests", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+}
+
+model Server {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  iconUrl     String?
+  inviteCode  String         @unique
+  ownerId     String         @db.ObjectId
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  owner       User           @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     ServerMember[]
+  channels    Channel[]
+}
+
+model ServerMember {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  serverId          String   @db.ObjectId
+  userId            String   @db.ObjectId
+  role              String   @default("MEMBER") // OWNER, ADMIN, MODERATOR, MEMBER, GUEST
+  customPermissions String?  // Optional custom settings
+  createdAt         DateTime @default(now())
+
+  server            Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+}
+
+model Channel {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  serverId     String    @db.ObjectId
+  name         String
+  type         String    // TEXT, VOICE, STREAM
+  categoryName String?
+  isPrivate    Boolean   @default(false)
+  adminOnly    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  server       Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages     Message[]
+}
+
+model Message {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  channelId   String?   @db.ObjectId // null for DMs
+  receiverId  String?   @db.ObjectId // null for channel messages
+  userId      String    @db.ObjectId
+  content     String
+  replyToId   String?   @db.ObjectId
+  fileUrl     String?
+  fileName    String?
+  fileType    String?
+  fileSize    Int?
+  expiresAt   DateTime?
+  isExpired   Boolean   @default(false)
+  isRead      Boolean   @default(false)
+  isDelivered Boolean   @default(false)
+  deletedFor  String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // NEW custom fields for link preview embeds
+  embedTitle       String?
+  embedDescription String?
+  embedThumbnail   String?
+  embedSiteName    String?
+  embedVideoUrl    String?
+  embedColor       String?
+
+  channel     Channel?  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user        User      @relation("UserMessages", fields: [userId], references: [id], onDelete: Cascade)
+  receiver    User?     @relation("ReceivedDMs", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  replyTo     Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies     Message[] @relation("MessageReplies")
+  reactions   Reaction[]
+}
+
+model Reaction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId String   @db.ObjectId
+  userId    String   @db.ObjectId
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
