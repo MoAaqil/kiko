@@ -10,7 +10,7 @@ COPY prisma ./prisma/
 RUN npm install --omit=dev --legacy-peer-deps
 
 # Generate Prisma Client
-RUN npx prisma generate
+RUN npx --no-install prisma generate
 
 # Copy source code
 COPY src ./src
