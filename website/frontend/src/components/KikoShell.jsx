@@ -2969,7 +2969,7 @@ export default function KikoShell() {
 
           {/* Right details panel drawer */}
           {rightPanelOpen && (
-            <div style={styles.detailDrawer} className="glass-panel">
+            <div style={styles.detailDrawer} className="glass-panel kiko-detail-drawer">
               {activeServerId ? (
                 // Server members detail view
                 <div style={styles.drawerInner}>

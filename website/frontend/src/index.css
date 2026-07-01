@@ -883,6 +883,18 @@ code {
     overflow: hidden;
   }
 
+  /* Main viewport takes full width — sidebars are absolutely positioned overlays */
+  .kiko-main-viewport {
+    width: 100% !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  /* HIDE the right detail panel completely on mobile */
+  .kiko-detail-drawer {
+    display: none !important;
+  }
+
   /* Slide server bar off-screen by default */
   .kiko-server-bar {
     position: absolute !important;
@@ -912,10 +924,21 @@ code {
     transform: translateX(-150%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+    /* Override glass-panel: solid bg prevents backdrop-filter blur bleed on mobile */
+    background: var(--bg-secondary) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .kiko-sub-sidebar.open {
     transform: translateX(0) !important;
+  }
+
+  /* Also give server bar solid background on mobile */
+  .kiko-server-bar {
+    background: var(--bg-primary) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   /* Dimming overlay behind sidebars */
