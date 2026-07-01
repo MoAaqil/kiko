@@ -134,6 +134,11 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [autoDeleteDuration, setAutoDeleteDuration] = useState(currentUser?.autoDeleteDuration || 0);
   const [toast, setToast]                     = useState('');
 
+  // Local settings states
+  const [messageDensity, setMessageDensity]   = useState(localStorage.getItem('kiko_density') || 'cozy');
+  const [reducedMotion, setReducedMotion]     = useState(localStorage.getItem('kiko_motion') === 'true');
+  const [devMode, setDevMode]                 = useState(localStorage.getItem('kiko_dev_mode') === 'true');
+
   const [connections, setConnections] = useState([
     { id: 'yt',      platform: 'YouTube',  account: 'moaaqil',   emoji: '▶️', connected: true  },
     { id: 'gh',      platform: 'GitHub',   account: 'moaaqil99', emoji: '🐙', connected: true  },
@@ -189,6 +194,21 @@ export default function ProfileModal({ isOpen, onClose }) {
     if (isOpen) document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
+
+  // Settings sync effects
+  useEffect(() => {
+    localStorage.setItem('kiko_density', messageDensity);
+    document.documentElement.setAttribute('data-density', messageDensity);
+  }, [messageDensity]);
+
+  useEffect(() => {
+    localStorage.setItem('kiko_motion', reducedMotion);
+    document.documentElement.setAttribute('data-motion', reducedMotion ? 'reduced' : 'normal');
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    localStorage.setItem('kiko_dev_mode', devMode);
+  }, [devMode]);
 
   if (!isOpen) return null;
 
