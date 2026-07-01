@@ -2034,27 +2034,32 @@ export default function KikoShell() {
             </button>
 
             {activeServerId ? (
-              <>
-                <Hash size={20} color="var(--text-secondary)" />
-                <span style={styles.headerTitle}>{activeChannel?.name || 'welcome'}</span>
-                {activeChannel?.categoryName && (
-                  <span style={styles.headerCategory}>{activeChannel.categoryName}</span>
-                )}
-              </>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                <Hash size={18} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                  <span style={{ ...styles.headerTitle, fontSize: '0.95rem' }}>{activeChannel?.name || 'welcome'}</span>
+                  {activeChannel?.categoryName && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {activeChannel.categoryName} {activeChannel.topic ? `— ${activeChannel.topic}` : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
             ) : activeDMUserId ? (
-              <>
-                <div style={styles.avatarWrapper}>
-                  <img src={activeDMFriend?.friend?.avatarUrl} alt={activeDMFriend?.friend?.username} style={styles.headerAvatar} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                <div style={{ ...styles.avatarWrapper, flexShrink: 0 }}>
+                  <img src={activeDMFriend?.friend?.avatarUrl} alt={activeDMFriend?.friend?.username} style={{ ...styles.headerAvatar, width: '34px', height: '34px' }} />
                   {activeDMFriend?.friend?.avatarDecoration && (
                     <span className={`avatar-decoration ${activeDMFriend.friend.avatarDecoration}`} />
                   )}
                   <span className={`status-dot ${activeDMFriend?.friend?.status}`} style={styles.headerStatusDot} />
                 </div>
-                <span style={styles.headerTitle}>{activeDMFriend?.friend?.displayName || activeDMFriend?.friend?.username}</span>
-                {activeDMFriend?.friend?.customStatus && (
-                  <span style={styles.headerCategory}>{activeDMFriend.friend.customStatus}</span>
-                )}
-                
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                  <span style={{ ...styles.headerTitle, fontSize: '0.95rem' }}>{activeDMFriend?.friend?.displayName || activeDMFriend?.friend?.username}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {activeDMFriend?.friend?.customStatus || activeDMFriend?.friend?.status?.toLowerCase() || 'offline'}
+                  </span>
+                </div>
                 {/* Voice, Video & Screen Calls buttons — hidden on mobile to prevent overflow */}
                 <div style={{ display: isMobile ? 'none' : 'flex', gap: '8px', marginLeft: '12px' }}>
                   {(() => {
@@ -2165,7 +2170,7 @@ export default function KikoShell() {
                     );
                   })()}
                 </div>
-              </>
+              </div>
             ) : (
               <>
                 <Users size={20} color="var(--accent-cyan)" />
@@ -2250,10 +2255,104 @@ export default function KikoShell() {
                 {/* Scrollable messages thread */}
                 <div style={styles.messagesScroll}>
                   {filteredChatHistory.length === 0 ? (
-                    <div style={styles.emptyChatBanner}>
-                      <MessageSquare size={48} color="var(--text-muted)" />
-                      <h3>No messages found</h3>
-                      <p>Start the conversation, upload media, or initiate a stream room call.</p>
+                    <div style={{
+                      margin: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '16px',
+                      textAlign: 'center',
+                      padding: '32px 24px',
+                      color: 'var(--text-muted)',
+                      maxWidth: '340px',
+                      width: '100%',
+                    }}>
+                      {/* Avatar ring or DM avatar */}
+                      <div style={{
+                        position: 'relative',
+                        width: '88px',
+                        height: '88px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef)',
+                        padding: '3px',
+                        boxShadow: '0 0 32px rgba(139,92,246,0.4)',
+                        animation: 'pulseGlow 3s ease-in-out infinite alternate',
+                      }}>
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '50%',
+                          background: 'var(--bg-tertiary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
+                          {activeDMFriend?.friend?.avatarUrl ? (
+                            <img
+                              src={activeDMFriend.friend.avatarUrl}
+                              alt=""
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <MessageSquare size={36} color="#8b5cf6" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Heading */}
+                      <div>
+                        <h3 style={{
+                          fontSize: '1.1rem',
+                          fontWeight: '700',
+                          color: 'var(--text-primary)',
+                          margin: '0 0 6px 0',
+                        }}>
+                          {activeDMUserId
+                            ? `Start chatting with ${activeDMFriend?.friend?.displayName || 'your friend'}`
+                            : activeChannelId
+                              ? `Welcome to #${activeChannel?.name || 'channel'}`
+                              : 'No messages yet'}
+                        </h3>
+                        <p style={{
+                          fontSize: '0.82rem',
+                          color: 'var(--text-muted)',
+                          margin: 0,
+                          lineHeight: 1.55,
+                        }}>
+                          {activeDMUserId
+                            ? 'This is the beginning of your conversation. Say hello! 👋'
+                            : 'Send a message, share a file, or start a voice call.'}
+                        </p>
+                      </div>
+
+                      {/* CTA button */}
+                      <button
+                        onClick={() => {
+                          const input = document.querySelector('.kiko-main-viewport input[type="text"]');
+                          if (input) input.focus();
+                        }}
+                        style={{
+                          background: 'var(--accent-gradient)',
+                          border: 'none',
+                          borderRadius: '22px',
+                          padding: '10px 24px',
+                          color: '#fff',
+                          fontWeight: '700',
+                          fontSize: '0.88rem',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 16px rgba(139,92,246,0.35)',
+                          transition: 'transform 0.15s, box-shadow 0.15s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(139,92,246,0.5)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(139,92,246,0.35)'; }}
+                      >
+                        <MessageSquare size={16} />
+                        Start Conversation
+                      </button>
                     </div>
                   ) : (
                     filteredChatHistory.map(msg => {
@@ -2733,20 +2832,21 @@ export default function KikoShell() {
                   }}>
                      {/* Attachment clip + game button */}
                     {!isRecording && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '8px' }}>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Attach file">
-                          <Paperclip size={18} color="var(--text-secondary)" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '8px', flexShrink: 0 }}>
+                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', width: '32px', height: '32px', justifyContent: 'center', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', flexShrink: 0 }} title="Attach file">
+                          <Paperclip size={16} color="var(--text-secondary)" />
                           <input type="file" style={{ display: 'none' }} onChange={handleFileChange} />
                         </label>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                           <button
                             type="button"
                             title="Launch Chat Game"
                             onClick={(e) => { e.stopPropagation(); setShowGameMenu(!showGameMenu); }}
                             style={{
-                              background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
-                              display: 'flex', alignItems: 'center', color: showGameMenu ? '#00d2ff' : 'var(--text-secondary)',
-                              transition: 'color 0.15s'
+                              background: 'rgba(255,255,255,0.03)', border: 'none', cursor: 'pointer',
+                              width: '32px', height: '32px', borderRadius: '50%',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', color: showGameMenu ? '#00d2ff' : 'var(--text-secondary)',
+                              transition: 'color 0.15s', flexShrink: 0
                             }}
                           >
                             <Gamepad2 size={18} color="currentColor" />
@@ -2828,43 +2928,49 @@ export default function KikoShell() {
                       </>
                     ) : (
                       <>
-                        {/* Markdown toggle */}
-                        <button
-                          type="button"
-                          title="Markdown Toolbar"
-                          onClick={() => { setShowMdToolbar(v => !v); playSFX('click'); }}
-                          style={{
-                            background: showMdToolbar ? 'rgba(0,210,255,0.15)' : 'transparent',
-                            border: 'none', cursor: 'pointer', padding: '5px 7px',
-                            color: showMdToolbar ? '#00d2ff' : 'var(--text-secondary)',
-                            borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'monospace',
-                            fontWeight: '700', transition: 'all 0.15s',
-                          }}
-                        >
-                          &lt;/&gt;
-                        </button>
+                        {/* Markdown toggle — hidden on mobile */}
+                        {!isMobile && (
+                          <button
+                            type="button"
+                            title="Markdown Toolbar"
+                            onClick={() => { setShowMdToolbar(v => !v); playSFX('click'); }}
+                            style={{
+                              background: showMdToolbar ? 'rgba(0,210,255,0.15)' : 'transparent',
+                              border: 'none', cursor: 'pointer', padding: '5px 7px',
+                              color: showMdToolbar ? '#00d2ff' : 'var(--text-secondary)',
+                              borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'monospace',
+                              fontWeight: '700', transition: 'all 0.15s',
+                              flexShrink: 0
+                            }}
+                          >
+                            &lt;/&gt;
+                          </button>
+                        )}
                         {/* Voice mic */}
                         {!chatInput && !selectedFile && (
                           <button type="button" title="Voice message" onClick={startVoiceRecording}
-                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', color: 'var(--text-secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px', color: 'var(--text-secondary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <Mic size={18} />
                           </button>
                         )}
-                        {/* Emoji picker toggle */}
-                        <button
-                          type="button"
-                          title="Emoji Picker"
-                          onClick={() => { setEmojiDrawerOpen(v => !v); playSFX('click'); }}
-                          style={{
-                            background: emojiDrawerOpen ? 'rgba(0,210,255,0.15)' : 'transparent',
-                            border: 'none', cursor: 'pointer', padding: '4px 6px',
-                            fontSize: '1.1rem', borderRadius: '6px', transition: 'all 0.15s',
-                          }}
-                        >
-                          😀
-                        </button>
+                        {/* Emoji picker toggle — hidden on mobile */}
+                        {!isMobile && (
+                          <button
+                            type="button"
+                            title="Emoji Picker"
+                            onClick={() => { setEmojiDrawerOpen(v => !v); playSFX('click'); }}
+                            style={{
+                              background: emojiDrawerOpen ? 'rgba(0,210,255,0.15)' : 'transparent',
+                              border: 'none', cursor: 'pointer', padding: '4px 6px',
+                              fontSize: '1.1rem', borderRadius: '6px', transition: 'all 0.15s',
+                              flexShrink: 0
+                            }}
+                          >
+                            😀
+                          </button>
+                        )}
                         {/* Send */}
-                        <button type="submit" style={styles.sendSubmitBtn} onClick={() => playSFX('click')}>
+                        <button type="submit" style={{ ...styles.sendSubmitBtn, flexShrink: 0 }} onClick={() => playSFX('click')}>
                           <Send size={18} color="#fff" />
                         </button>
                       </>
@@ -3730,7 +3836,7 @@ const styles = {
     display: 'flex',
     width: '100%',
     maxWidth: '100%',
-    height: '100vh',
+    height: '100dvh',
     background: 'var(--bg-primary)',
     overflow: 'hidden',
     isolation: 'isolate',
@@ -4092,10 +4198,12 @@ const styles = {
   messagesScroll: {
     flex: 1,
     overflowY: 'auto',
-    padding: '20px',
+    overflowX: 'hidden',
+    overscrollBehavior: 'contain',
+    padding: '16px 12px 8px 12px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '18px',
+    gap: '14px',
   },
   emptyChatBanner: {
     margin: 'auto',
@@ -4260,14 +4368,19 @@ const styles = {
     cursor: 'pointer',
   },
   chatInputForm: {
-    padding: '0 20px 20px 20px',
+    padding: '0 12px 12px 12px',
+    flexShrink: 0,
   },
   inputContainer: {
     display: 'flex',
     alignItems: 'center',
-    padding: '12px 18px',
+    padding: '8px 14px',
     background: 'rgba(0,0,0,0.3)',
-    borderRadius: 'var(--border-radius-lg)',
+    borderRadius: '20px',
+    border: '1px solid var(--glass-border)',
+    minHeight: '52px',
+    flexWrap: 'nowrap',
+    gap: '6px',
   },
   attachmentLabel: {
     cursor: 'pointer',

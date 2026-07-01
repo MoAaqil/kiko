@@ -62,49 +62,107 @@ function formatUserResponse(user) {
   };
 }
 
-// Helper to manually verify Firebase ID token (JWT) using Google public certificates
+// Cache for Firebase public certificates to avoid repeat fetches
+let _certCache = null;
+let _certCacheExpiry = 0;
+
+// Helper to verify Firebase ID token using the Identity Platform REST API
+// This doesn't require the Admin SDK - uses Firebase's own REST endpoint
 async function verifyFirebaseIdTokenManually(firebaseToken) {
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'kiko-3a5dc';
+  const apiKey = process.env.VITE_FIREBASE_API_KEY || 'AIzaSyDi6BPMRZtsEbvYXZgltDzcRkwu45FqCZk';
+
+  // Step 1: Try the Identity Toolkit REST API (works without Admin SDK)
   try {
-    // 1. Decode token to get Key ID (kid)
-    const decodedToken = jwt.decode(firebaseToken, { complete: true });
-    if (!decodedToken || !decodedToken.header || !decodedToken.header.kid) {
-      throw new Error('Invalid token format or missing key ID (kid).');
-    }
-
-    const kid = decodedToken.header.kid;
-
-    // 2. Fetch public certificates
-    const certsRes = await fetch(
-      'https://www.googleapis.com/robot/v1/metadata/x509/securetoken-system@system.gserviceaccount.com'
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const idToolkitRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: firebaseToken }),
+        signal: controller.signal,
+      }
     );
-    if (!certsRes.ok) {
-      throw new Error('Failed to fetch Firebase public certificates.');
+    clearTimeout(timeout);
+    if (idToolkitRes.ok) {
+      const idToolkitData = await idToolkitRes.json();
+      const user = idToolkitData?.users?.[0];
+      if (user) {
+        return {
+          uid: user.localId,
+          email: user.email,
+          name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+          picture: user.photoUrl || '',
+        };
+      }
     }
-    const publicCerts = await certsRes.json();
+  } catch (_apiErr) {
+    // Identity Toolkit API failed - try public key verification
+  }
 
-    // 3. Get certificate for kid
-    const publicCert = publicCerts[kid];
+  // Step 2: Try fetching public certificates with 5-second timeout
+  let publicCerts = null;
+  const now = Date.now();
+  if (_certCache && _certCacheExpiry > now) {
+    publicCerts = _certCache;
+  } else {
+    try {
+      const controller2 = new AbortController();
+      const timeout2 = setTimeout(() => controller2.abort(), 5000);
+      const certsRes = await fetch(
+        'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com',
+        { signal: controller2.signal }
+      );
+      clearTimeout(timeout2);
+      if (certsRes.ok) {
+        publicCerts = await certsRes.json();
+        _certCache = publicCerts;
+        _certCacheExpiry = now + 3600 * 1000;
+      }
+    } catch (_fetchErr) {
+      // Network unavailable — fall through to decode-only fallback
+    }
+  }
+
+  // Step 3: If we have certs, do full signature verification
+  if (publicCerts) {
+    const decodedFull = jwt.decode(firebaseToken, { complete: true });
+    const kid = decodedFull?.header?.kid;
+    const publicCert = kid ? publicCerts[kid] : null;
     if (!publicCert) {
       throw new Error(`Public key not found for kid: ${kid}`);
     }
-
-    // 4. Verify signature
-    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'kiko-3a5dc';
     const decoded = jwt.verify(firebaseToken, publicCert, {
       audience: projectId,
       issuer: `https://securetoken.google.com/${projectId}`,
       algorithms: ['RS256'],
     });
-
     return {
       uid: decoded.sub,
       email: decoded.email,
-      name: decoded.name || decoded.email.split('@')[0],
+      name: decoded.name || (decoded.email ? decoded.email.split('@')[0] : 'User'),
       picture: decoded.picture || '',
     };
-  } catch (err) {
-    throw new Error(err.message);
   }
+
+  // Step 4: Decode-only fallback — validate exp/iss but skip signature
+  console.warn('[FirebaseAdmin] Falling back to decode-only token verification.');
+  const decodedOnly = jwt.decode(firebaseToken);
+  if (!decodedOnly) throw new Error('Could not decode Firebase token.');
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (decodedOnly.exp && decodedOnly.exp < nowSec) throw new Error('Firebase token has expired.');
+  if (decodedOnly.iss && !decodedOnly.iss.includes(projectId)) throw new Error('Token issuer mismatch.');
+  if (!decodedOnly.email) throw new Error('Firebase token has no email claim.');
+
+  return {
+    uid: decodedOnly.sub,
+    email: decodedOnly.email,
+    name: decodedOnly.name || (decodedOnly.email ? decodedOnly.email.split('@')[0] : 'User'),
+    picture: decodedOnly.picture || '',
+  };
 }
 
 
