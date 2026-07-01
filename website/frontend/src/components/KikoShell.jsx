@@ -1406,6 +1406,21 @@ export default function KikoShell() {
       }} 
       className="kiko-shell"
     >
+      {/* Mobile Drawer backdrop overlay — renders FIRST so sidebars (rendered after) are always on top */}
+      {mobileSidebarOpen && isMobile && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 8,
+            animation: 'fadeIn 0.2s ease-out',
+            cursor: 'pointer',
+          }}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* 1. SERVER vertical tray */}
       <div
         style={{
@@ -1417,7 +1432,7 @@ export default function KikoShell() {
             left: 0,
             bottom: 0,
             height: '100%',
-            zIndex: 1000,
+            zIndex: 10,
             background: 'var(--bg-primary)',
             transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
@@ -1490,13 +1505,6 @@ export default function KikoShell() {
         </div>
       </div>
 
-      {/* Mobile Drawer backdrop overlay */}
-      {mobileSidebarOpen && (
-        <div 
-          className="kiko-sidebar-overlay" 
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
 
       {/* 2. SUB-SIDEBAR (Server channels or Direct messages list) */}
       <div
@@ -1510,7 +1518,7 @@ export default function KikoShell() {
             bottom: 0,
             height: '100%',
             width: '240px',
-            zIndex: 999,
+            zIndex: 9,
             background: 'var(--bg-secondary)',
             transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-200%)',
             transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
@@ -2001,7 +2009,13 @@ export default function KikoShell() {
         style={{
           ...styles.mainViewport,
           // On mobile: take full 100% width (sidebars are absolute overlays)
-          ...(isMobile ? { width: '100%', minWidth: 0 } : {})
+          ...(isMobile ? { 
+            width: '100%', 
+            minWidth: 0, 
+            position: 'relative', 
+            zIndex: 1, 
+            isolation: 'isolate' 
+          } : {})
         }}
         className="kiko-main-viewport"
       >
@@ -3714,10 +3728,13 @@ export default function KikoShell() {
 const styles = {
   shell: {
     display: 'flex',
-    width: '100vw',
+    width: '100%',
+    maxWidth: '100%',
     height: '100vh',
     background: 'var(--bg-primary)',
     overflow: 'hidden',
+    isolation: 'isolate',
+    position: 'relative',
   },
   serverBar: {
     width: '72px',
