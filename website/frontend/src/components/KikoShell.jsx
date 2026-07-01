@@ -1014,6 +1014,14 @@ export default function KikoShell() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Responsive: detect mobile (<= 768px) via JS so inline styles can adapt
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Voice recorder state
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -1399,7 +1407,25 @@ export default function KikoShell() {
       className="kiko-shell"
     >
       {/* 1. SERVER vertical tray */}
-      <div style={styles.serverBar} className={`kiko-server-bar ${mobileSidebarOpen ? 'open' : ''}`}>
+      <div
+        style={{
+          ...styles.serverBar,
+          // On mobile: absolute overlay, slides in/out
+          ...(isMobile ? {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            height: '100%',
+            zIndex: 1000,
+            background: 'var(--bg-primary)',
+            transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+            boxShadow: mobileSidebarOpen ? '4px 0 20px rgba(0,0,0,0.6)' : 'none',
+          } : {})
+        }}
+        className="kiko-server-bar"
+      >
         {/* Kiko Logo representing DMs */}
         <div 
           className="logo-container" 
@@ -1473,7 +1499,26 @@ export default function KikoShell() {
       )}
 
       {/* 2. SUB-SIDEBAR (Server channels or Direct messages list) */}
-      <div style={styles.subSidebar} className={`glass-panel kiko-sub-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+      <div
+        style={{
+          ...styles.subSidebar,
+          // On mobile: absolute overlay next to server bar (72px from left)
+          ...(isMobile ? {
+            position: 'absolute',
+            top: 0,
+            left: '72px',
+            bottom: 0,
+            height: '100%',
+            width: '240px',
+            zIndex: 999,
+            background: 'var(--bg-secondary)',
+            transform: mobileSidebarOpen ? 'translateX(0)' : 'translateX(-200%)',
+            transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+            boxShadow: mobileSidebarOpen ? '4px 0 20px rgba(0,0,0,0.4)' : 'none',
+          } : {})
+        }}
+        className="glass-panel kiko-sub-sidebar"
+      >
         {activeServerId ? (
           // Server Channels lists
           <div style={styles.channelsWrapper}>
@@ -1952,7 +1997,14 @@ export default function KikoShell() {
       </div>
 
       {/* 3. PRIMARY VIEWPORT */}
-      <div style={styles.mainViewport} className="kiko-main-viewport">
+      <div
+        style={{
+          ...styles.mainViewport,
+          // On mobile: take full 100% width (sidebars are absolute overlays)
+          ...(isMobile ? { width: '100%', minWidth: 0 } : {})
+        }}
+        className="kiko-main-viewport"
+      >
         
         {/* Top Header Bar */}
         <div style={styles.mainHeader} className="glass-panel">
@@ -1989,8 +2041,8 @@ export default function KikoShell() {
                   <span style={styles.headerCategory}>{activeDMFriend.friend.customStatus}</span>
                 )}
                 
-                {/* Voice, Video & Screen Calls buttons */}
-                <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                {/* Voice, Video & Screen Calls buttons — hidden on mobile to prevent overflow */}
+                <div style={{ display: isMobile ? 'none' : 'flex', gap: '8px', marginLeft: '12px' }}>
                   {(() => {
                     const dmRoomId = `dm-${[currentUser?.id, activeDMUserId].sort().join('-')}`;
                     const activeParticipants = voiceChannelsState[dmRoomId];
@@ -2109,8 +2161,8 @@ export default function KikoShell() {
           </div>
 
           <div style={styles.headerActions}>
-            {/* Search Input */}
-            {(activeChannelId || activeDMUserId) && (
+            {/* Search Input — hidden on mobile to prevent header overflow */}
+            {(activeChannelId || activeDMUserId) && !isMobile && (
               <div style={styles.searchBox}>
                 <Search size={14} color="var(--text-muted)" />
                 <input
@@ -2153,13 +2205,16 @@ export default function KikoShell() {
               </button>
             )}
 
-            <button 
-              style={styles.drawerToggleBtn} 
-              onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              title="Toggle Details Drawer"
-            >
-              <Users size={18} />
-            </button>
+            {/* Detail drawer toggle — hidden on mobile (detail drawer doesn't show on mobile) */}
+            {!isMobile && (
+              <button 
+                style={styles.drawerToggleBtn} 
+                onClick={() => setRightPanelOpen(!rightPanelOpen)}
+                title="Toggle Details Drawer"
+              >
+                <Users size={18} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -2968,7 +3023,7 @@ export default function KikoShell() {
           </div>
 
           {/* Right details panel drawer */}
-          {rightPanelOpen && (
+          {rightPanelOpen && !isMobile && (
             <div style={styles.detailDrawer} className="glass-panel kiko-detail-drawer">
               {activeServerId ? (
                 // Server members detail view
@@ -3906,18 +3961,23 @@ const styles = {
     minWidth: 0,
   },
   mainHeader: {
-    height: '64px',
+    height: '56px',
     borderBottom: '1px solid var(--glass-border)',
     borderRadius: '0',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '0 20px',
+    padding: '0 12px',
+    overflow: 'hidden',
+    flexShrink: 0,
   },
   headerTitleRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '8px',
+    minWidth: 0,
+    overflow: 'hidden',
+    flex: 1,
   },
   headerAvatar: {
     width: '28px',
@@ -3935,6 +3995,10 @@ const styles = {
     fontSize: '1rem',
     fontWeight: '700',
     color: '#fff',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    minWidth: 0,
   },
   headerCategory: {
     fontSize: '0.8rem',
