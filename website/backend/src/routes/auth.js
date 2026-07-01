@@ -62,6 +62,52 @@ function formatUserResponse(user) {
   };
 }
 
+// Helper to manually verify Firebase ID token (JWT) using Google public certificates
+async function verifyFirebaseIdTokenManually(firebaseToken) {
+  try {
+    // 1. Decode token to get Key ID (kid)
+    const decodedToken = jwt.decode(firebaseToken, { complete: true });
+    if (!decodedToken || !decodedToken.header || !decodedToken.header.kid) {
+      throw new Error('Invalid token format or missing key ID (kid).');
+    }
+
+    const kid = decodedToken.header.kid;
+
+    // 2. Fetch public certificates
+    const certsRes = await fetch(
+      'https://www.googleapis.com/robot/v1/metadata/x509/securetoken-system@system.gserviceaccount.com'
+    );
+    if (!certsRes.ok) {
+      throw new Error('Failed to fetch Firebase public certificates.');
+    }
+    const publicCerts = await certsRes.json();
+
+    // 3. Get certificate for kid
+    const publicCert = publicCerts[kid];
+    if (!publicCert) {
+      throw new Error(`Public key not found for kid: ${kid}`);
+    }
+
+    // 4. Verify signature
+    const projectId = process.env.VITE_FIREBASE_PROJECT_ID || 'kiko-3a5dc';
+    const decoded = jwt.verify(firebaseToken, publicCert, {
+      audience: projectId,
+      issuer: `https://securetoken.google.com/${projectId}`,
+      algorithms: ['RS256'],
+    });
+
+    return {
+      uid: decoded.sub,
+      email: decoded.email,
+      name: decoded.name || decoded.email.split('@')[0],
+      picture: decoded.picture || '',
+    };
+  } catch (err) {
+    throw new Error(err.message);
+  }
+}
+
+
 // EMAIL LOOKUP BY USERNAME (For Firebase email resolution)
 router.get('/email-by-username', async (req, res) => {
   try {
@@ -253,7 +299,7 @@ router.post('/firebase-sync', async (req, res) => {
       return res.status(401).json({ error: 'No Firebase token provided.' });
     }
 
-    // If Admin SDK is available, use it; otherwise verify via Firebase REST API
+    // If Admin SDK is available, use it; otherwise verify manually
     let decodedFirebase;
     if (isFirebaseEnabled) {
       try {
@@ -263,23 +309,11 @@ router.post('/firebase-sync', async (req, res) => {
         return res.status(401).json({ error: 'Firebase token verification failed: ' + e.message });
       }
     } else {
-      // Fallback: use Google tokeninfo endpoint to verify the Firebase ID token
+      // Fallback: verify Firebase ID token manually using public certificates
       try {
-        const verifyRes = await fetch(
-          `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${firebaseToken}`
-        );
-        if (!verifyRes.ok) {
-          return res.status(401).json({ error: 'Google token verification failed.' });
-        }
-        const tokenInfo = await verifyRes.json();
-        decodedFirebase = {
-          uid: tokenInfo.sub,
-          email: tokenInfo.email,
-          name: tokenInfo.name,
-          picture: tokenInfo.picture,
-        };
+        decodedFirebase = await verifyFirebaseIdTokenManually(firebaseToken);
       } catch (fetchErr) {
-        return res.status(401).json({ error: 'Could not verify Firebase token: ' + fetchErr.message });
+        return res.status(401).json({ error: 'Google token verification failed: ' + fetchErr.message });
       }
     }
 
