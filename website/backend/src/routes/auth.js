@@ -11,17 +11,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'kiko_secret_jwt_key_9918231';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || 'kiko_refresh_jwt_key_9283749';
 
 // GET FIREBASE / AUTH CONFIGURATION FOR THE CLIENT
+// Firebase client config is always served (it's public-safe public data)
 router.get('/config', (req, res) => {
   res.json({
-    firebaseEnabled: isFirebaseEnabled,
-    firebaseConfig: isFirebaseEnabled ? {
+    firebaseEnabled: true,  // Always enable client-side Firebase
+    firebaseConfig: {
       apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyDi6BPMRZtsEbvYXZgltDzcRkwu45FqCZk",
       authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "kiko-3a5dc.firebaseapp.com",
       projectId: process.env.VITE_FIREBASE_PROJECT_ID || "kiko-3a5dc",
       storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "kiko-3a5dc.firebasestorage.app",
       messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "529200125167",
       appId: process.env.VITE_FIREBASE_APP_ID || "1:529200125167:web:96faac6b09913abde4771a"
-    } : null
+    }
   });
 });
 
@@ -235,14 +236,71 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // FIREBASE SIGN-IN SYNC
-router.post('/firebase-sync', authenticateToken, async (req, res) => {
+// Accepts a Firebase ID token in Authorization header, verifies it with
+// Google's public JWT key endpoint (no Admin SDK required), then
+// finds or creates the matching Kiko user account and returns app tokens.
+router.post('/firebase-sync', async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id }
-    });
+    const authHeader = req.headers.authorization || '';
+    const firebaseToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
+    if (!firebaseToken) {
+      return res.status(401).json({ error: 'No Firebase token provided.' });
+    }
+
+    // If Admin SDK is available, use it; otherwise verify via Firebase REST API
+    let decodedFirebase;
+    if (isFirebaseEnabled) {
+      try {
+        const { verifyFirebaseToken } = await import('../firebaseAdmin.js');
+        decodedFirebase = await verifyFirebaseToken(firebaseToken);
+      } catch (e) {
+        return res.status(401).json({ error: 'Firebase token verification failed: ' + e.message });
+      }
+    } else {
+      // Fallback: use Google tokeninfo endpoint to verify the Firebase ID token
+      try {
+        const verifyRes = await fetch(
+          `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${firebaseToken}`
+        );
+        if (!verifyRes.ok) {
+          return res.status(401).json({ error: 'Google token verification failed.' });
+        }
+        const tokenInfo = await verifyRes.json();
+        decodedFirebase = {
+          uid: tokenInfo.sub,
+          email: tokenInfo.email,
+          name: tokenInfo.name,
+          picture: tokenInfo.picture,
+        };
+      } catch (fetchErr) {
+        return res.status(401).json({ error: 'Could not verify Firebase token: ' + fetchErr.message });
+      }
+    }
+
+    const { email, name, picture } = decodedFirebase;
+    if (!email) {
+      return res.status(400).json({ error: 'Firebase token has no email claim.' });
+    }
+
+    // Find or create Kiko user by email
+    let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return res.status(404).json({ error: 'User synchronization failed.' });
+      const baseUsername = email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLowerCase();
+      let uniqueUsername = baseUsername || 'user';
+      let counter = 1;
+      while (await prisma.user.findUnique({ where: { username: uniqueUsername } })) {
+        uniqueUsername = `${baseUsername}${counter++}`;
+      }
+      user = await prisma.user.create({
+        data: {
+          email,
+          username: uniqueUsername,
+          displayName: name || uniqueUsername,
+          avatarUrl: picture || `https://api.dicebear.com/7.x/bottts/svg?seed=${uniqueUsername}`,
+          passwordHash: 'firebase_managed',
+        },
+      });
     }
 
     // Set online status

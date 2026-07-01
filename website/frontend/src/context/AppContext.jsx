@@ -66,7 +66,12 @@ export function AppProvider({ children }) {
     };
     fetchConfig();
   }, []);
-  const [theme, setTheme] = useState(localStorage.getItem('kiko_theme') || 'light');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('kiko_theme') || 'dark';
+    // Apply immediately to avoid flash of wrong theme
+    document.documentElement.setAttribute('data-theme', saved);
+    return saved;
+  });
   const [bgWallpaper, setBgWallpaper] = useState(
     localStorage.getItem('kiko_wallpaper') || 
     'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1600&auto=format&fit=crop&q=60&blur=10'

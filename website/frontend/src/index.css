@@ -51,19 +51,151 @@
   --glass-bg: rgba(255, 255, 255, 0.95);
   --glass-bg-hover: rgba(0, 0, 0, 0.04);
   --glass-bg-active: rgba(0, 0, 0, 0.08);
-  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-border: rgba(0, 0, 0, 0.10);
   --glass-border-focus: rgba(59, 130, 246, 0.5);
-  --glass-shadow: rgba(0, 0, 0, 0.05);
+  --glass-shadow: rgba(0, 0, 0, 0.08);
 
   --text-primary: #313338;
   --text-secondary: #4e5058;
-  --text-muted: #949ba4;
+  --text-muted: #7a8194;
 
   --accent-cyan: #3b82f6;
   --accent-purple: #8b5cf6;
   --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   --glow-cyan: rgba(59, 130, 246, 0.15);
   --glow-purple: rgba(139, 92, 246, 0.15);
+}
+
+/* Light theme — all component surface overrides */
+[data-theme="light"] body {
+  background-color: #f2f3f5;
+}
+[data-theme="light"] .input-field {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #313338 !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+[data-theme="light"] .input-field::placeholder {
+  color: #7a8194 !important;
+}
+[data-theme="light"] .input-field:focus {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+}
+[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.90) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme="light"] .glass-panel,
+[data-theme="light"] .glass-panel * {
+  color: #313338;
+}
+[data-theme="light"] .kiko-server-bar {
+  background: rgba(228, 231, 235, 0.92) !important;
+  border-right: 1px solid rgba(0,0,0,0.10) !important;
+}
+[data-theme="light"] .kiko-sub-sidebar {
+  background: rgba(242, 243, 245, 0.96) !important;
+  border-right: 1px solid rgba(0,0,0,0.08) !important;
+}
+[data-theme="light"] .kiko-sub-sidebar * {
+  color: #4e5058 !important;
+}
+[data-theme="light"] .kiko-sub-sidebar [class*="channelRow"]:hover *,
+[data-theme="light"] .kiko-sub-sidebar [class*="channelRow"][style*="background"] * {
+  color: #060607 !important;
+}
+[data-theme="light"] .kiko-main-viewport {
+  background: rgba(255, 255, 255, 0.75) !important;
+}
+[data-theme="light"] .kiko-main-viewport div[style*="mainHeader"] {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+}
+[data-theme="light"] .kiko-main-viewport div[style*="mainHeader"] * {
+  color: #4e5058 !important;
+}
+[data-theme="light"] .kiko-main-viewport .messageRow .msgDisplayName {
+  color: #060607 !important;
+  text-shadow: none !important;
+}
+[data-theme="light"] .messageRow:hover {
+  background: rgba(0,0,0,0.03) !important;
+}
+[data-theme="light"] .msgDisplayName {
+  color: #060607 !important;
+  text-shadow: none !important;
+}
+[data-theme="light"] .msgTimestamp {
+  color: #7a8194 !important;
+}
+[data-theme="light"] .chat-bubble-incoming {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0,0,0,0.10) !important;
+  color: #1a1a2e !important;
+}
+[data-theme="light"] .chat-bubble-incoming,
+[data-theme="light"] .chat-bubble-incoming * {
+  color: #1a1a2e !important;
+  text-shadow: none !important;
+}
+[data-theme="light"] .chat-bubble-outgoing,
+[data-theme="light"] .chat-bubble-outgoing * {
+  color: #ffffff !important;
+}
+[data-theme="light"] pre {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #313338 !important;
+}
+[data-theme="light"] code {
+  color: #1d4ed8 !important;
+}
+[data-theme="light"] select option {
+  background-color: #f2f3f5 !important;
+  color: #313338 !important;
+}
+[data-theme="light"] .kiko-sub-sidebar div[style*="userTray"] {
+  background: rgba(227, 229, 232, 0.95) !important;
+  border-top: 1px solid rgba(0,0,0,0.08) !important;
+}
+[data-theme="light"] .kiko-sub-sidebar div[style*="userTray"] * {
+  color: #4e5058 !important;
+}
+[data-theme="light"] .user-popover {
+  background: #ffffff !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+}
+[data-theme="light"] .message-actions-overlay {
+  background: rgba(255,255,255,0.95) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+}
+[data-theme="light"] .msg-action-btn {
+  color: #4e5058 !important;
+}
+[data-theme="light"] .msg-action-btn:hover {
+  background: rgba(0,0,0,0.06) !important;
+  color: #060607 !important;
+}
+[data-theme="light"] .reaction-pill {
+  background: rgba(0,0,0,0.06) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  color: #313338 !important;
+}
+[data-theme="light"] .reaction-pill span {
+  color: #313338 !important;
+}
+[data-theme="light"] .kiko-read-receipt span {
+  color: rgba(59,130,246,0.8) !important;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15) !important;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25) !important;
 }
 
 /* AMOLED Black overrides */
@@ -201,6 +333,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-text);
   outline: none;
   transition: var(--transition-fast);
+  box-sizing: border-box;
 }
 
 .input-field:focus {
@@ -715,6 +848,11 @@ code {
    RESPONSIVE LAYOUT SYSTEM
    ========================================================================== */
 
+/* Always hide hamburger button on desktop */
+.kiko-mobile-menu-btn {
+  display: none !important;
+}
+
 /* Hide detail drawer by default on smaller screens */
 @media (max-width: 1024px) {
   .kiko-detail-drawer {
@@ -722,15 +860,30 @@ code {
   }
 }
 
-/* Mobile responsive drawer navigation styling */
+/* ── Tablet + Mobile (768px and below) ── */
 @media (max-width: 768px) {
+  /* Prevent body scroll bounce; let inner panels scroll */
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  /* Auth page card — fits on phone screens */
+  .glass-panel[style*="card"],
+  .glass-panel[style*="width: '420px'"] {
+    width: 94vw !important;
+    max-width: 420px !important;
+    padding: 28px 20px !important;
+    margin: 0 auto;
+  }
+
   /* Let the main shell be relative to clip absolute sidebars */
   .kiko-shell {
     position: relative;
     overflow: hidden;
   }
 
-  /* Slide off-screen by default */
+  /* Slide server bar off-screen by default */
   .kiko-server-bar {
     position: absolute !important;
     left: 0 !important;
@@ -742,43 +895,44 @@ code {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
   }
-  
+
   .kiko-server-bar.open {
     transform: translateX(0) !important;
   }
 
+  /* Slide sub-sidebar off-screen by default */
   .kiko-sub-sidebar {
     position: absolute !important;
-    left: 72px !important;
+    left: 0 !important;
     top: 0 !important;
     bottom: 0 !important;
     height: 100% !important;
-    width: 240px !important;
+    width: 260px !important;
     z-index: 999 !important;
-    transform: translateX(-150%);
+    transform: translateX(-110%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
   }
-  
+
   .kiko-sub-sidebar.open {
     transform: translateX(0) !important;
   }
 
-  /* Backdrop filter overlay */
+  /* Dimming overlay behind sidebars */
   .kiko-sidebar-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     z-index: 998;
     animation: fadeIn 0.2s ease-out;
   }
 
-  /* Hamburger Toggle button in header */
+  /* Show hamburger button on mobile */
   .kiko-mobile-menu-btn {
     display: flex !important;
     align-items: center;
@@ -787,22 +941,99 @@ code {
     border: none;
     cursor: pointer;
     padding: 8px;
-    margin-right: 8px;
+    margin-right: 6px;
     border-radius: 50%;
+    flex-shrink: 0;
     transition: background 0.2s;
   }
-  
+
   .kiko-mobile-menu-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.07);
   }
 
-  /* Adjust grid spacing and sizes for chat and lists on mobile */
+  /* Main viewport takes full width on mobile */
   .kiko-main-viewport {
     width: 100% !important;
+    min-width: 0 !important;
   }
 
+  /* Tighten message rows on mobile */
   .messageRow {
+    padding: 4px 10px !important;
+  }
+
+  /* Chat bubble max-width on mobile */
+  .chat-bubble-outgoing,
+  .chat-bubble-incoming {
+    max-width: 82vw !important;
+  }
+
+  /* Reaction pills wrap on mobile */
+  .reactions-display-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Chat input area — no overflow on mobile */
+  .kiko-main-viewport form {
+    padding: 6px 10px !important;
+  }
+
+  /* iOS safe area inset for home indicator */
+  .kiko-main-viewport > div:last-child {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  /* Header title — clip overflow to fit in narrow header */
+  .kiko-main-viewport div[style*="mainHeader"] span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    display: inline-block;
+  }
+
+  /* Settings modal — full screen on mobile */
+  div[style*="1060px"],
+  div[style*="width: '1060px'"] {
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+  }
+}
+
+/* ── Small phones (480px and below) ── */
+@media (max-width: 480px) {
+  /* Auth page — smaller title */
+  .glass-panel h2[style],
+  .glass-panel h2 {
+    font-size: 1.7rem !important;
+  }
+
+  /* Tighter padding on auth card */
+  .glass-panel[style*="padding"] {
+    padding: 22px 16px !important;
+  }
+
+  /* Even tighter message rows */
+  .messageRow {
+    padding: 3px 8px !important;
+  }
+
+  /* Chat bubbles use more of the width */
+  .chat-bubble-outgoing,
+  .chat-bubble-incoming {
+    max-width: 88vw !important;
+    font-size: 0.88rem !important;
     padding: 8px 12px !important;
+  }
+
+  /* Header icons shrink on tiny screens */
+  .kiko-main-viewport div[style*="mainHeader"] svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 }
 
