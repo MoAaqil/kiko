@@ -77,6 +77,12 @@ export function AppProvider({ children }) {
     'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1600&auto=format&fit=crop&q=60&blur=10'
   );
 
+  // Settings sync states
+  const [messageDensity, setMessageDensity] = useState(localStorage.getItem('kiko_density') || 'cozy');
+  const [reducedMotion, setReducedMotion] = useState(localStorage.getItem('kiko_motion') === 'true');
+  const [devMode, setDevMode] = useState(localStorage.getItem('kiko_dev_mode') === 'true');
+  const [fontScale, setFontScale] = useState(parseInt(localStorage.getItem('kiko_font_scale')) || 100);
+
   // Friends & Servers
   const [friends, setFriends] = useState([]);
   const [servers, setServers] = useState([]);
@@ -159,6 +165,38 @@ export function AppProvider({ children }) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('kiko_theme', theme);
   }, [theme]);
+
+  // Sync settings and apply to document root
+  useEffect(() => {
+    document.documentElement.setAttribute('data-density', messageDensity);
+    localStorage.setItem('kiko_density', messageDensity);
+  }, [messageDensity]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-motion', reducedMotion ? 'reduced' : 'normal');
+    localStorage.setItem('kiko_motion', reducedMotion);
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    localStorage.setItem('kiko_dev_mode', devMode);
+  }, [devMode]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--font-scale', `${fontScale}%`);
+    localStorage.setItem('kiko_font_scale', fontScale);
+  }, [fontScale]);
+
+  // Synchronize state when currentUser loads from DB
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.theme) setTheme(currentUser.theme);
+      if (currentUser.bgWallpaper) setBgWallpaper(currentUser.bgWallpaper);
+      if (currentUser.messageDensity) setMessageDensity(currentUser.messageDensity);
+      if (currentUser.reducedMotion !== undefined) setReducedMotion(currentUser.reducedMotion);
+      if (currentUser.devMode !== undefined) setDevMode(currentUser.devMode);
+      if (currentUser.fontScale) setFontScale(currentUser.fontScale);
+    }
+  }, [currentUser]);
 
   // Sync localStream to ref
   useEffect(() => {
@@ -1401,6 +1439,14 @@ export function AppProvider({ children }) {
         setTheme,
         bgWallpaper,
         setBgWallpaper,
+        messageDensity,
+        setMessageDensity,
+        reducedMotion,
+        setReducedMotion,
+        devMode,
+        setDevMode,
+        fontScale,
+        setFontScale,
         setActiveServerId,
         setActiveChannelId,
         setActiveDMUserId,

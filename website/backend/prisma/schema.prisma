@@ -30,6 +30,12 @@ model User {
   favoriteGame          String         @default("")
   gamesInRotation       String         @default("")
   autoDeleteDuration    Int            @default(0) // auto delete timer in minutes
+  theme                 String         @default("dark")
+  bgWallpaper           String         @default("https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1600&auto=format&fit=crop&q=60&blur=10")
+  messageDensity        String         @default("cozy")
+  reducedMotion         Boolean        @default(false)
+  devMode               Boolean        @default(false)
+  fontScale             Int            @default(100)
 
   sentFriendRequests     Friend[]       @relation("SentRequests")
   receivedFriendRequests Friend[]       @relation("ReceivedRequests")

@@ -105,6 +105,10 @@ export default function ProfileModal({ isOpen, onClose }) {
   const {
     currentUser, updateProfile, logout,
     theme, setTheme, bgWallpaper, setBgWallpaper,
+    messageDensity, setMessageDensity,
+    reducedMotion, setReducedMotion,
+    devMode, setDevMode,
+    fontScale, setFontScale,
     activeServerId, activeChannelId,
     selectedInputDeviceId, selectedOutputDeviceId,
     setInputDevice, setOutputDevice
@@ -129,15 +133,9 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [noiseSuppression, setNoiseSuppression] = useState(true);
   const [echoCancellation, setEchoCancellation] = useState(true);
   const [autoGain, setAutoGain]               = useState(true);
-  const [fontScale, setFontScale]             = useState(100);
   const [saving, setSaving]                   = useState(false);
   const [autoDeleteDuration, setAutoDeleteDuration] = useState(currentUser?.autoDeleteDuration || 0);
   const [toast, setToast]                     = useState('');
-
-  // Local settings states
-  const [messageDensity, setMessageDensity]   = useState(localStorage.getItem('kiko_density') || 'cozy');
-  const [reducedMotion, setReducedMotion]     = useState(localStorage.getItem('kiko_motion') === 'true');
-  const [devMode, setDevMode]                 = useState(localStorage.getItem('kiko_dev_mode') === 'true');
 
   const [connections, setConnections] = useState([
     { id: 'yt',      platform: 'YouTube',  account: 'moaaqil',   emoji: '▶️', connected: true  },
@@ -195,20 +193,7 @@ export default function ProfileModal({ isOpen, onClose }) {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
-  // Settings sync effects
-  useEffect(() => {
-    localStorage.setItem('kiko_density', messageDensity);
-    document.documentElement.setAttribute('data-density', messageDensity);
-  }, [messageDensity]);
 
-  useEffect(() => {
-    localStorage.setItem('kiko_motion', reducedMotion);
-    document.documentElement.setAttribute('data-motion', reducedMotion ? 'reduced' : 'normal');
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    localStorage.setItem('kiko_dev_mode', devMode);
-  }, [devMode]);
 
   if (!isOpen) return null;
 
@@ -597,7 +582,7 @@ export default function ProfileModal({ isOpen, onClose }) {
           { id: 'light',  label: 'Light',        icon: <Sun size={18} />,     desc: 'Clean white surfaces' },
           { id: 'amoled', label: 'AMOLED Black', icon: <Shield size={18} />,  desc: 'Pure black, battery saver' },
         ].map(t => (
-          <div key={t.id} onClick={() => setTheme(t.id)} style={{
+          <div key={t.id} onClick={() => { setTheme(t.id); updateProfile({ theme: t.id }); }} style={{
             padding: '16px', borderRadius: '12px', cursor: 'pointer',
             border: theme === t.id ? `2px solid ${G.accent}` : `1px solid ${G.border}`,
             background: theme === t.id ? 'rgba(139,92,246,0.12)' : G.bg2,
@@ -612,7 +597,7 @@ export default function ProfileModal({ isOpen, onClose }) {
       <GroupLabel>Message Density</GroupLabel>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '24px' }}>
         {[{ id: 'cozy', label: '☁️ Cozy', desc: 'Spaced, readable layout' }, { id: 'compact', label: '⚡ Compact', desc: 'Dense, efficient layout' }].map(d => (
-          <div key={d.id} onClick={() => setMessageDensity(d.id)} style={{ padding: '16px', borderRadius: '12px', cursor: 'pointer', border: messageDensity === d.id ? `2px solid ${G.accent}` : `1px solid ${G.border}`, background: messageDensity === d.id ? 'rgba(139,92,246,0.12)' : G.bg2, transition: 'all 0.15s' }}>
+          <div key={d.id} onClick={() => { setMessageDensity(d.id); updateProfile({ messageDensity: d.id }); }} style={{ padding: '16px', borderRadius: '12px', cursor: 'pointer', border: messageDensity === d.id ? `2px solid ${G.accent}` : `1px solid ${G.border}`, background: messageDensity === d.id ? 'rgba(139,92,246,0.12)' : G.bg2, transition: 'all 0.15s' }}>
             <div style={{ fontWeight: '700', fontSize: '0.88rem', color: messageDensity === d.id ? G.accent : G.text }}>{d.label}</div>
             <div style={{ fontSize: '0.75rem', color: G.textMut, marginTop: '3px' }}>{d.desc}</div>
           </div>
@@ -624,7 +609,7 @@ export default function ProfileModal({ isOpen, onClose }) {
           <span style={{ fontSize: '0.85rem', fontWeight: '500', color: G.textSub }}>Chat Font Size</span>
           <span style={{ fontSize: '0.85rem', fontWeight: '700', color: G.accent }}>{fontScale}%</span>
         </div>
-        <input type="range" min="80" max="140" step="10" value={fontScale} onChange={e => setFontScale(e.target.value)} style={{ width: '100%', accentColor: G.accent }} />
+        <input type="range" min="80" max="140" step="10" value={fontScale} onChange={e => setFontScale(parseInt(e.target.value))} onMouseUp={e => updateProfile({ fontScale: parseInt(e.target.value) })} onTouchEnd={e => updateProfile({ fontScale: parseInt(e.target.value) })} style={{ width: '100%', accentColor: G.accent }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.7rem', color: G.textMut }}>
           <span>80% Smaller</span><span>100% Default</span><span>140% Larger</span>
         </div>
@@ -637,7 +622,7 @@ export default function ProfileModal({ isOpen, onClose }) {
           { name: 'Abstract', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=60' },
           { name: 'Dream',    url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=800&auto=format&fit=crop&q=60' },
         ].map(wp => (
-          <div key={wp.name} onClick={() => { setBgWallpaper(wp.url); localStorage.setItem('kiko_wallpaper', wp.url); showToast(`🖼 Wallpaper set to ${wp.name}`); }}
+          <div key={wp.name} onClick={() => { setBgWallpaper(wp.url); updateProfile({ bgWallpaper: wp.url }); showToast(`🖼 Wallpaper set to ${wp.name}`); }}
             style={{ height: '64px', borderRadius: '10px', cursor: 'pointer', overflow: 'hidden', backgroundImage: `url(${wp.url})`, backgroundSize: 'cover', backgroundPosition: 'center', border: bgWallpaper === wp.url ? `2px solid ${G.accent}` : '2px solid transparent', position: 'relative', boxShadow: bgWallpaper === wp.url ? `0 0 12px rgba(139,92,246,0.5)` : 'none', transition: 'all 0.15s' }}>
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', padding: '3px 6px', fontSize: '0.62rem', fontWeight: '700', color: '#fff' }}>{wp.name}</div>
           </div>
@@ -648,7 +633,7 @@ export default function ProfileModal({ isOpen, onClose }) {
           const file = e.target.files?.[0];
           if (!file) return;
           const reader = new FileReader();
-          reader.onload = ev => { setBgWallpaper(ev.target.result); localStorage.setItem('kiko_wallpaper', ev.target.result); showToast('✓ Custom wallpaper applied!'); };
+          reader.onload = ev => { setBgWallpaper(ev.target.result); updateProfile({ bgWallpaper: ev.target.result }); showToast('✓ Custom wallpaper applied!'); };
           reader.readAsDataURL(file);
         }} />
         📸 Upload custom wallpaper…
@@ -700,7 +685,7 @@ export default function ProfileModal({ isOpen, onClose }) {
       <SectionTitle>Accessibility</SectionTitle>
       <SectionDesc>Configure display and interaction preferences for a more comfortable experience.</SectionDesc>
       <GroupLabel>Motion & Animation</GroupLabel>
-      <SettingToggleRow label="Reduced Motion" description="Minimize animations throughout the interface." checked={reducedMotion} onChange={setReducedMotion} />
+      <SettingToggleRow label="Reduced Motion" description="Minimize animations throughout the interface." checked={reducedMotion} onChange={val => { setReducedMotion(val); updateProfile({ reducedMotion: val }); }} />
       <GroupLabel>Display</GroupLabel>
       <GlassCard>
         <FieldRow label="Saturation" hint="Adjust color saturation of the entire interface.">
@@ -714,7 +699,7 @@ export default function ProfileModal({ isOpen, onClose }) {
     <div>
       <SectionTitle>Advanced</SectionTitle>
       <SectionDesc>Developer tools, debugging options, and experimental features.</SectionDesc>
-      <SettingToggleRow icon={<Monitor size={15} color="#a78bfa" />} label="Developer Mode" description="Enables ID copying for servers, channels, messages, and users." checked={devMode} onChange={setDevMode} />
+      <SettingToggleRow icon={<Monitor size={15} color="#a78bfa" />} label="Developer Mode" description="Enables ID copying for servers, channels, messages, and users." checked={devMode} onChange={val => { setDevMode(val); updateProfile({ devMode: val }); }} />
       {devMode && (
         <div style={{ background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '14px', padding: '20px', marginTop: '12px' }}>
           <div style={{ fontSize: '0.72rem', fontWeight: '700', color: G.textMut, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '14px' }}>Developer Actions</div>

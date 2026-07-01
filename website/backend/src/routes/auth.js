@@ -34,6 +34,34 @@ function generateTokens(user) {
   return { accessToken, refreshToken };
 }
 
+// Helper to format user response consistently
+function formatUserResponse(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    bannerUrl: user.bannerUrl,
+    bio: user.bio,
+    status: user.status,
+    customStatus: user.customStatus,
+    bannerColor: user.bannerColor,
+    avatarDecoration: user.avatarDecoration,
+    profileEffect: user.profileEffect,
+    favoriteGame: user.favoriteGame,
+    gamesInRotation: user.gamesInRotation,
+    autoDeleteDuration: user.autoDeleteDuration,
+    theme: user.theme,
+    bgWallpaper: user.bgWallpaper,
+    messageDensity: user.messageDensity,
+    reducedMotion: user.reducedMotion,
+    devMode: user.devMode,
+    fontScale: user.fontScale,
+    createdAt: user.createdAt,
+  };
+}
+
 // EMAIL LOOKUP BY USERNAME (For Firebase email resolution)
 router.get('/email-by-username', async (req, res) => {
   try {
@@ -102,18 +130,7 @@ router.post('/register', async (req, res) => {
     return res.status(201).json({
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        bannerUrl: user.bannerUrl,
-        bio: user.bio,
-        status: user.status,
-        customStatus: user.customStatus,
-        createdAt: user.createdAt,
-      },
+      user: formatUserResponse(user),
     });
   } catch (error) {
     console.error('[Auth Register Error]', error);
@@ -159,19 +176,7 @@ router.post('/login', async (req, res) => {
     return res.json({
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        bannerUrl: user.bannerUrl,
-        bio: user.bio,
-        status: 'online',
-        customStatus: user.customStatus,
-        autoDeleteDuration: user.autoDeleteDuration,
-        createdAt: user.createdAt,
-      },
+      user: formatUserResponse(user),
     });
   } catch (error) {
     console.error('[Auth Login Error]', error);
@@ -316,23 +321,7 @@ router.post('/firebase-sync', async (req, res) => {
     return res.json({
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        bannerUrl: user.bannerUrl,
-        bio: user.bio,
-        status: 'online',
-        customStatus: user.customStatus,
-        bannerColor: user.bannerColor,
-        avatarDecoration: user.avatarDecoration,
-        profileEffect: user.profileEffect,
-        favoriteGame: user.favoriteGame,
-        gamesInRotation: user.gamesInRotation,
-        createdAt: user.createdAt,
-      }
+      user: formatUserResponse(user)
     });
   } catch (error) {
     console.error('[Firebase Sync Error]', error);
@@ -351,24 +340,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    return res.json({
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      bannerUrl: user.bannerUrl,
-      bio: user.bio,
-      status: user.status,
-      customStatus: user.customStatus,
-      bannerColor: user.bannerColor,
-      avatarDecoration: user.avatarDecoration,
-      profileEffect: user.profileEffect,
-      favoriteGame: user.favoriteGame,
-      gamesInRotation: user.gamesInRotation,
-      autoDeleteDuration: user.autoDeleteDuration,
-      createdAt: user.createdAt,
-    });
+    return res.json(formatUserResponse(user));
   } catch (error) {
     console.error('[Auth Me Error]', error);
     return res.status(500).json({ error: 'Internal server error fetching self.' });
@@ -381,7 +353,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
     const { 
       displayName, avatarUrl, bannerUrl, bio, status, customStatus,
       bannerColor, avatarDecoration, profileEffect, favoriteGame, gamesInRotation,
-      autoDeleteDuration
+      autoDeleteDuration, theme, bgWallpaper, messageDensity, reducedMotion,
+      devMode, fontScale
     } = req.body;
 
     const dataToUpdate = {};
@@ -397,6 +370,12 @@ router.put('/profile', authenticateToken, async (req, res) => {
     if (favoriteGame !== undefined) dataToUpdate.favoriteGame = favoriteGame;
     if (gamesInRotation !== undefined) dataToUpdate.gamesInRotation = gamesInRotation;
     if (autoDeleteDuration !== undefined) dataToUpdate.autoDeleteDuration = parseInt(autoDeleteDuration);
+    if (theme !== undefined) dataToUpdate.theme = theme;
+    if (bgWallpaper !== undefined) dataToUpdate.bgWallpaper = bgWallpaper;
+    if (messageDensity !== undefined) dataToUpdate.messageDensity = messageDensity;
+    if (reducedMotion !== undefined) dataToUpdate.reducedMotion = reducedMotion;
+    if (devMode !== undefined) dataToUpdate.devMode = devMode;
+    if (fontScale !== undefined) dataToUpdate.fontScale = parseInt(fontScale);
     dataToUpdate.lastSeen = new Date();
 
     const updatedUser = await prisma.user.update({
@@ -404,24 +383,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
       data: dataToUpdate,
     });
 
-    return res.json({
-      id: updatedUser.id,
-      email: updatedUser.email,
-      username: updatedUser.username,
-      displayName: updatedUser.displayName,
-      avatarUrl: updatedUser.avatarUrl,
-      bannerUrl: updatedUser.bannerUrl,
-      bio: updatedUser.bio,
-      status: updatedUser.status,
-      customStatus: updatedUser.customStatus,
-      bannerColor: updatedUser.bannerColor,
-      avatarDecoration: updatedUser.avatarDecoration,
-      profileEffect: updatedUser.profileEffect,
-      favoriteGame: updatedUser.favoriteGame,
-      gamesInRotation: updatedUser.gamesInRotation,
-      autoDeleteDuration: updatedUser.autoDeleteDuration,
-      createdAt: updatedUser.createdAt,
-    });
+    return res.json(formatUserResponse(updatedUser));
   } catch (error) {
     console.error('[Auth Profile Update Error]', error);
     return res.status(500).json({ error: 'Internal server error updating profile.' });

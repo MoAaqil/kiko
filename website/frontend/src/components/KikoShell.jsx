@@ -1407,6 +1407,7 @@ export default function KikoShell() {
             setActiveServerId(null);
             setActiveChannelId(null);
             setActiveDMUserId(null);
+            setMobileSidebarOpen(false);
           }}
           style={{
             ...styles.logoWrapper,
@@ -1620,7 +1621,7 @@ export default function KikoShell() {
                       ...styles.channelRow,
                       background: activeChannelId === ch.id ? 'var(--glass-bg-active)' : 'transparent',
                     }}
-                    onClick={() => setActiveChannelId(ch.id)}
+                    onClick={() => { setActiveChannelId(ch.id); setMobileSidebarOpen(false); }}
                   >
                     <Hash size={16} color="var(--text-secondary)" />
                     <span style={activeChannelId === ch.id ? { color: '#fff', fontWeight: '500' } : {}}>{ch.name}</span>
@@ -1643,7 +1644,7 @@ export default function KikoShell() {
                           ...styles.channelRow,
                           background: callRoomId === ch.id ? 'rgba(0, 210, 255, 0.15)' : 'transparent',
                         }}
-                        onClick={() => joinCallRoom(ch.id, 'voice')}
+                        onClick={() => { joinCallRoom(ch.id, 'voice'); setMobileSidebarOpen(false); }}
                       >
                         <Volume2 size={16} color="var(--accent-cyan)" />
                         <span>{ch.name}</span>
@@ -1685,7 +1686,7 @@ export default function KikoShell() {
                           ...styles.channelRow,
                           background: callRoomId === ch.id ? 'rgba(212, 0, 255, 0.15)' : 'transparent',
                         }}
-                        onClick={() => joinCallRoom(ch.id, 'screen')}
+                        onClick={() => { joinCallRoom(ch.id, 'screen'); setMobileSidebarOpen(false); }}
                       >
                         <Video size={16} color="var(--accent-purple)" />
                         <span>{ch.name}</span>
@@ -1792,6 +1793,7 @@ export default function KikoShell() {
                       setActiveServerId(null);
                       setActiveChannelId(null);
                       setActiveDMUserId(rel.friend.id);
+                      setMobileSidebarOpen(false);
                     }}
                   >
                     <div style={styles.avatarWrapper}>
