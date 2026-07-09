@@ -112,7 +112,7 @@ export default function ProfileModal({ isOpen, onClose }) {
     activeServerId, activeChannelId,
     selectedInputDeviceId, selectedOutputDeviceId,
     setInputDevice, setOutputDevice,
-    updateAvailable, latestVersion, CURRENT_VERSION
+    updateAvailable, latestVersion, latestVersionInfo: contextLatestVersionInfo, CURRENT_VERSION
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('account');
@@ -139,7 +139,19 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [toast, setToast]                     = useState('');
 
   const [updateStatus, setUpdateStatus] = useState(updateAvailable ? 'available' : 'idle');
-  const [latestVersionInfo, setLatestVersionInfo] = useState(null);
+  const [latestVersionInfo, setLatestVersionInfo] = useState(contextLatestVersionInfo);
+
+  useEffect(() => {
+    if (contextLatestVersionInfo) {
+      setLatestVersionInfo(contextLatestVersionInfo);
+    }
+  }, [contextLatestVersionInfo]);
+
+  useEffect(() => {
+    if (updateAvailable) {
+      setUpdateStatus('available');
+    }
+  }, [updateAvailable]);
 
   const checkForUpdates = async () => {
     setUpdateStatus('checking');

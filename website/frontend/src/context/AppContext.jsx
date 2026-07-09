@@ -160,9 +160,10 @@ export function AppProvider({ children }) {
   }, [activeDMUserId]);
 
   // Application Version & Updates
-  const CURRENT_VERSION = '1.0.0';
+  const CURRENT_VERSION = '1.0.1';
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [latestVersion, setLatestVersion] = useState('1.0.0');
+  const [latestVersion, setLatestVersion] = useState('1.0.1');
+  const [latestVersionInfo, setLatestVersionInfo] = useState(null);
 
   // WebRTC Call states
   const [callRoomId, setCallRoomId] = useState(null);
@@ -1020,6 +1021,7 @@ export function AppProvider({ children }) {
           if (data.version && data.version !== CURRENT_VERSION) {
             setUpdateAvailable(true);
             setLatestVersion(data.version);
+            setLatestVersionInfo(data);
             
             // Show native desktop notification if running in Electron
             if (window.kikoElectron) {
@@ -1627,6 +1629,7 @@ export function AppProvider({ children }) {
         // Updates
         updateAvailable,
         latestVersion,
+        latestVersionInfo,
         CURRENT_VERSION,
 
         // Auth
