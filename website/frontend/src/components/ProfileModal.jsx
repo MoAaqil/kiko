@@ -207,6 +207,10 @@ export default function ProfileModal({ isOpen, onClose }) {
 
   const enumerateDevices = async () => {
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('[DeviceEnum] navigator.mediaDevices is not available');
+        return;
+      }
       // Request mic permission first so device labels are visible
       await navigator.mediaDevices.getUserMedia({ audio: true })
         .then(s => s.getTracks().forEach(t => t.stop()))
@@ -233,8 +237,10 @@ export default function ProfileModal({ isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) {
       enumerateDevices();
-      navigator.mediaDevices.addEventListener('devicechange', enumerateDevices);
-      return () => navigator.mediaDevices.removeEventListener('devicechange', enumerateDevices);
+      if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+        navigator.mediaDevices.addEventListener('devicechange', enumerateDevices);
+        return () => navigator.mediaDevices.removeEventListener('devicechange', enumerateDevices);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
