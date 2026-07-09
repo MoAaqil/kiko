@@ -10,19 +10,35 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'kiko_secret_jwt_key_9918231';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || 'kiko_refresh_jwt_key_9283749';
 
+const getFirebaseClientConfig = () => {
+  const firebaseConfig = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.VITE_FIREBASE_APP_ID,
+  };
+  const hasRequiredConfig = Boolean(
+    firebaseConfig.apiKey &&
+    firebaseConfig.authDomain &&
+    firebaseConfig.projectId &&
+    firebaseConfig.appId
+  );
+  const explicitlyEnabled = process.env.ENABLE_FIREBASE_AUTH === 'true';
+
+  return {
+    enabled: explicitlyEnabled && hasRequiredConfig,
+    config: hasRequiredConfig ? firebaseConfig : null,
+  };
+};
+
 // GET FIREBASE / AUTH CONFIGURATION FOR THE CLIENT
-// Firebase client config is always served (it's public-safe public data)
 router.get('/config', (req, res) => {
+  const firebaseClient = getFirebaseClientConfig();
   res.json({
-    firebaseEnabled: true,  // Always enable client-side Firebase
-    firebaseConfig: {
-      apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyDi6BPMRZtsEbvYXZgltDzcRkwu45FqCZk",
-      authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "kiko-3a5dc.firebaseapp.com",
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || "kiko-3a5dc",
-      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "kiko-3a5dc.firebasestorage.app",
-      messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "529200125167",
-      appId: process.env.VITE_FIREBASE_APP_ID || "1:529200125167:web:96faac6b09913abde4771a"
-    }
+    firebaseEnabled: firebaseClient.enabled,
+    firebaseConfig: firebaseClient.enabled ? firebaseClient.config : null,
   });
 });
 
@@ -99,7 +115,8 @@ async function verifyFirebaseIdTokenManually(firebaseToken) {
       }
     }
   } catch (_apiErr) {
-    // Identity Toolkit API failed - try public key verification
+    // Identity Toolkit API failed — log and try cert verification
+    console.warn('[FirebaseVerify] Identity Toolkit API failed:', _apiErr.message || _apiErr);
   }
 
   // Step 2: Try fetching public certificates with 5-second timeout
@@ -363,14 +380,23 @@ router.post('/firebase-sync', async (req, res) => {
       try {
         const { verifyFirebaseToken } = await import('../firebaseAdmin.js');
         decodedFirebase = await verifyFirebaseToken(firebaseToken);
+        console.log('[FirebaseSync] Verified via Admin SDK');
       } catch (e) {
-        return res.status(401).json({ error: 'Firebase token verification failed: ' + e.message });
+        console.error('[FirebaseSync] Admin SDK verification failed:', e.message);
+        // Try the manual fallback before returning an error
+        try {
+          decodedFirebase = await verifyFirebaseIdTokenManually(firebaseToken);
+          console.log('[FirebaseSync] Verified via fallback after Admin SDK failure');
+        } catch (fallbackErr) {
+          return res.status(401).json({ error: 'Firebase token verification failed: ' + fallbackErr.message });
+        }
       }
     } else {
-      // Fallback: verify Firebase ID token manually using public certificates
+      // No Admin SDK — verify via REST API or decode fallback
       try {
         decodedFirebase = await verifyFirebaseIdTokenManually(firebaseToken);
       } catch (fetchErr) {
+        console.error('[FirebaseSync] Manual verification failed:', fetchErr.message);
         return res.status(401).json({ error: 'Google token verification failed: ' + fetchErr.message });
       }
     }

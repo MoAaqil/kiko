@@ -224,6 +224,7 @@ export default function WebRTCCall() {
   const [expanded, setExpanded] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
+  const [theaterMode, setTheaterMode] = useState(false);
 
   // Call timer
   useEffect(() => {
@@ -258,9 +259,36 @@ export default function WebRTCCall() {
         : 'repeat(3, 1fr)';
 
   const isSomeoneElseSharing = remoteStreams.some(p => p.streamType === 'screen');
+  const localScreenShare = isScreenShare && localStream
+    ? {
+        socketId: 'local-screen',
+        stream: localStream,
+        username: currentUser?.displayName || currentUser?.username || 'You',
+        streamType: 'screen',
+        isSelf: true,
+      }
+    : null;
+  const remoteScreenShare = remoteStreams.find((peer) => peer.streamType === 'screen');
+  const focusedScreenShare = localScreenShare || remoteScreenShare || null;
+  const secondaryTiles = focusedScreenShare
+    ? [
+        ...(localStream && !localScreenShare ? [{
+          socketId: 'local-self',
+          stream: localStream,
+          username: currentUser?.displayName || currentUser?.username || 'You',
+          streamType: callType,
+          isSelf: true,
+        }] : []),
+        ...remoteStreams.filter((peer) => peer.socketId !== focusedScreenShare.socketId),
+      ]
+    : [];
 
   return (
-    <div style={{ ...styles.container, height: expanded ? '100%' : '64px' }}>
+    <div style={{
+      ...styles.container,
+      ...(theaterMode ? styles.theaterContainer : {}),
+      height: theaterMode ? '100vh' : expanded ? '100%' : '64px',
+    }}>
 
       {/* ── Header bar ─────────────────────────────────────── */}
       <div style={styles.header}>
@@ -282,6 +310,15 @@ export default function WebRTCCall() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {focusedScreenShare && (
+            <button
+              style={styles.miniBtn}
+              onClick={() => setTheaterMode((v) => !v)}
+              title={theaterMode ? 'Exit large view' : 'Large screen view'}
+            >
+              {theaterMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            </button>
+          )}
           <button
             style={styles.miniBtn}
             onClick={() => setShowSettings((v) => !v)}
@@ -321,6 +358,35 @@ export default function WebRTCCall() {
         <div style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
 
           {/* Main grid: remote streams OR local (when alone) */}
+          {focusedScreenShare ? (
+            <div style={styles.screenStage}>
+              <VideoTile
+                stream={focusedScreenShare.stream}
+                muted={focusedScreenShare.isSelf || deafened}
+                username={focusedScreenShare.username}
+                streamType="screen"
+                isSelf={focusedScreenShare.isSelf}
+                isActive={true}
+              />
+              {secondaryTiles.length > 0 && (
+                <div style={styles.participantStrip}>
+                  {secondaryTiles.map((tile) => (
+                    <VideoTile
+                      key={tile.socketId}
+                      stream={tile.isSelf ? tile.stream : deafened ? null : tile.stream}
+                      muted={tile.isSelf || deafened}
+                      username={tile.username}
+                      streamType={tile.streamType}
+                      isSelf={tile.isSelf}
+                      isActive={!tile.isSelf || !micMuted}
+                      isPip={true}
+                      style={{ width: '168px', height: '108px' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
           <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
 
             {/* When no remote streams, show local stream full */}
@@ -358,9 +424,10 @@ export default function WebRTCCall() {
               </div>
             )}
           </div>
+          )}
 
           {/* PiP self-view — bottom right corner when remote stream is present */}
-          {showLocalAsPip && (
+          {!focusedScreenShare && showLocalAsPip && (
             <div style={styles.pipWrapper}>
               <VideoTile
                 stream={localStream}
@@ -425,6 +492,12 @@ const styles = {
     overflow: 'hidden',
     transition: 'height 0.25s ease',
     flexShrink: 0,
+  },
+  theaterContainer: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 10000,
+    borderBottom: 'none',
   },
   header: {
     display: 'flex',
@@ -524,6 +597,27 @@ const styles = {
     padding: '12px',
     boxSizing: 'border-box',
     overflow: 'hidden',
+  },
+  screenStage: {
+    position: 'relative',
+    height: '100%',
+    padding: '12px',
+    boxSizing: 'border-box',
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gridTemplateRows: '1fr',
+    background: 'radial-gradient(circle at top, rgba(0,210,255,0.08), transparent 34%), #020308',
+  },
+  participantStrip: {
+    position: 'absolute',
+    right: '22px',
+    bottom: '22px',
+    display: 'flex',
+    gap: '10px',
+    maxWidth: '60%',
+    overflowX: 'auto',
+    padding: '4px',
+    zIndex: 12,
   },
   tile: {
     position: 'relative',

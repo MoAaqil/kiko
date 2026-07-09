@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import {
   X, LogOut, User, Volume2, Sliders, Link2, Monitor, HelpCircle,
   Crown, Flame, Inbox, Moon, Sun, Mic, ChevronDown, Gamepad2,
-  Sparkles, Shield, Pencil, Trash2
+  Sparkles, Shield, Pencil, Trash2, RefreshCw
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════
@@ -111,7 +111,8 @@ export default function ProfileModal({ isOpen, onClose }) {
     fontScale, setFontScale,
     activeServerId, activeChannelId,
     selectedInputDeviceId, selectedOutputDeviceId,
-    setInputDevice, setOutputDevice
+    setInputDevice, setOutputDevice,
+    updateAvailable, latestVersion, CURRENT_VERSION
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('account');
@@ -136,6 +137,48 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [saving, setSaving]                   = useState(false);
   const [autoDeleteDuration, setAutoDeleteDuration] = useState(currentUser?.autoDeleteDuration || 0);
   const [toast, setToast]                     = useState('');
+
+  const [updateStatus, setUpdateStatus] = useState(updateAvailable ? 'available' : 'idle');
+  const [latestVersionInfo, setLatestVersionInfo] = useState(null);
+
+  const checkForUpdates = async () => {
+    setUpdateStatus('checking');
+    try {
+      const res = await fetch('/version.json');
+      if (res.ok) {
+        const data = await res.json();
+        setLatestVersionInfo(data);
+        if (data.version && data.version !== CURRENT_VERSION) {
+          setUpdateStatus('available');
+          showToast('🔔 New update available: v' + data.version);
+        } else {
+          setUpdateStatus('uptodate');
+          showToast('✓ App is up to date.');
+        }
+      } else {
+        setTimeout(() => {
+          setUpdateStatus('uptodate');
+          showToast('✓ App is up to date.');
+        }, 1200);
+      }
+    } catch (e) {
+      setTimeout(() => {
+        setUpdateStatus('uptodate');
+        showToast('✓ App is up to date.');
+      }, 1000);
+    }
+  };
+
+  const handleUpdate = () => {
+    showToast('🚀 Redirecting to download latest release...');
+    setTimeout(() => {
+      if (window.kikoElectron && window.kikoElectron.openExternal) {
+        window.kikoElectron.openExternal('https://github.com/MoAaqil/kiko/releases');
+      } else {
+        window.location.reload(true);
+      }
+    }, 1000);
+  };
 
   const [connections, setConnections] = useState([
     { id: 'yt',      platform: 'YouTube',  account: 'moaaqil',   emoji: '▶️', connected: true  },
@@ -232,7 +275,7 @@ export default function ProfileModal({ isOpen, onClose }) {
     {
       label: 'Billing',
       items: [
-        { id: 'nitro',         label: 'Nitro',           tab: 'nitro',        icon: <Crown size={14} color="#a78bfa" />, badge: 'FREE' },
+        { id: 'nitro',         label: 'Aeos',            tab: 'nitro',        icon: <Crown size={14} color="#a78bfa" />, badge: 'FREE' },
         { id: 'server-boost',  label: 'Server Boost',    tab: 'nitro',        icon: <Flame size={14} color="#f472b6" /> },
         { id: 'subscriptions', label: 'Subscriptions',   tab: 'nitro',        icon: <Inbox size={14} /> },
       ],
@@ -244,6 +287,7 @@ export default function ProfileModal({ isOpen, onClose }) {
         { id: 'chat-settings',  label: 'Chat Settings',   tab: 'chat',         icon: <Sliders size={14} /> },
         { id: 'appearance',    label: 'Appearance',      tab: 'appearance',   icon: <Moon size={14} /> },
         { id: 'accessibility', label: 'Accessibility',   tab: 'accessibility',icon: <HelpCircle size={14} /> },
+        { id: 'updates',       label: 'App Updates',     tab: 'updates',      icon: <RefreshCw size={14} /> },
       ],
     },
     {
@@ -643,23 +687,23 @@ export default function ProfileModal({ isOpen, onClose }) {
 
   const renderNitro = () => (
     <div>
-      <SectionTitle>Nitro</SectionTitle>
+      <SectionTitle>Aeos</SectionTitle>
       <SectionDesc>Unlock premium features, custom cosmetics, and support ongoing development.</SectionDesc>
       <div style={{ borderRadius: '16px', background: 'linear-gradient(135deg, #7c3aed, #6366f1, #06b6d4)', padding: '32px', textAlign: 'center', marginBottom: '20px', boxShadow: '0 8px 32px rgba(99,102,241,0.3)' }}>
         <Crown size={36} color="#fff" style={{ marginBottom: '10px' }} />
-        <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', margin: '0 0 6px' }}>Kiko Nitro</h3>
+        <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', margin: '0 0 6px' }}>Kiko Aeos</h3>
         <p style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.85)', margin: 0 }}>Unlock HD streams, 500MB uploads, custom effects.</p>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
         <div style={{ background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '14px', padding: '20px' }}>
-          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: G.text, marginBottom: '6px' }}>Monthly Nitro</div>
+          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: G.text, marginBottom: '6px' }}>Monthly Aeos</div>
           <div style={{ fontSize: '0.78rem', color: G.textMut, marginBottom: '16px' }}>Animated decorations, effects, and profile cosmetics.</div>
-          <button onClick={() => showToast('✓ Monthly Nitro trial activated!')} style={{ width: '100%', padding: '11px', borderRadius: '10px', background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', border: 'none', color: '#fff', fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(124,58,237,0.4)' }}>Try 2 Weeks Free</button>
+          <button onClick={() => showToast('✓ Monthly Aeos trial activated!')} style={{ width: '100%', padding: '11px', borderRadius: '10px', background: 'linear-gradient(90deg, #7c3aed, #4f46e5)', border: 'none', color: '#fff', fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(124,58,237,0.4)' }}>Try 2 Weeks Free</button>
         </div>
         <div style={{ background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '14px', padding: '20px' }}>
-          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: G.text, marginBottom: '6px' }}>Gift Nitro</div>
-          <div style={{ fontSize: '0.78rem', color: G.textMut, marginBottom: '16px' }}>Send Nitro gift cards to friends on your list.</div>
-          <button onClick={() => showToast('🎁 Gift Nitro: select a friend…')} style={{ width: '100%', padding: '11px', borderRadius: '10px', background: G.bg3, border: `1px solid ${G.border2}`, color: G.text, fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer' }}>🎁 Gift Nitro</button>
+          <div style={{ fontWeight: '700', fontSize: '0.95rem', color: G.text, marginBottom: '6px' }}>Gift Aeos</div>
+          <div style={{ fontSize: '0.78rem', color: G.textMut, marginBottom: '16px' }}>Send Aeos gift cards to friends on your list.</div>
+          <button onClick={() => showToast('🎁 Gift Aeos: select a friend…')} style={{ width: '100%', padding: '11px', borderRadius: '10px', background: G.bg3, border: `1px solid ${G.border2}`, color: G.text, fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer' }}>🎁 Gift Aeos</button>
         </div>
       </div>
       <GroupLabel>Premium Perks</GroupLabel>
@@ -720,10 +764,71 @@ export default function ProfileModal({ isOpen, onClose }) {
     </div>
   );
 
+  const renderUpdates = () => (
+    <div>
+      <SectionTitle>App Updates</SectionTitle>
+      <SectionDesc>Manage application versions and check for updates.</SectionDesc>
+      
+      <GlassCard>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px' }}>
+          <div>
+            <div style={{ fontSize: '1rem', fontWeight: '700', color: '#fff' }}>Current Version</div>
+            <div style={{ fontSize: '0.85rem', color: G.textSub, marginTop: '4px' }}>v{CURRENT_VERSION}</div>
+          </div>
+          <div>
+            {updateStatus === 'checking' && (
+              <span style={{ fontSize: '0.88rem', color: G.accent }}>Checking for updates...</span>
+            )}
+            {updateStatus === 'idle' && (
+              <button 
+                onClick={checkForUpdates}
+                style={{ padding: '8px 16px', borderRadius: '8px', background: G.bg3, border: `1px solid ${G.border2}`, color: G.text, fontWeight: '600', fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.15s ease' }}
+              >
+                Check for Updates
+              </button>
+            )}
+            {updateStatus === 'uptodate' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.88rem', color: G.green, fontWeight: '600' }}>✓ Up to date</span>
+                <button 
+                  onClick={checkForUpdates}
+                  style={{ padding: '6px 12px', borderRadius: '6px', background: 'transparent', border: `1px solid ${G.border}`, color: G.textSub, fontSize: '0.78rem', cursor: 'pointer' }}
+                >
+                  Check again
+                </button>
+              </div>
+            )}
+            {updateStatus === 'available' && (
+              <button 
+                onClick={handleUpdate}
+                style={{ padding: '8px 16px', borderRadius: '8px', background: 'linear-gradient(90deg, #10b981, #059669)', border: 'none', color: '#fff', fontWeight: '700', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}
+              >
+                Update Now
+              </button>
+            )}
+          </div>
+        </div>
+      </GlassCard>
+
+      {updateStatus === 'available' && latestVersionInfo && (
+        <div style={{ marginTop: '20px', background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '12px', padding: '20px' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: '700', color: G.green, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            🎉 Version {latestVersionInfo.version} is available!
+          </div>
+          <div style={{ fontSize: '0.85rem', color: G.textSub, fontWeight: '600', marginBottom: '6px' }}>Release Notes:</div>
+          <div style={{ fontSize: '0.8rem', color: G.textSub, lineHeight: '1.5', background: 'rgba(0,0,0,0.15)', padding: '12px', borderRadius: '8px' }}>
+            {latestVersionInfo.releaseNotes || 'Bug fixes and performance improvements.'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const tabRenderers = {
     account: renderAccount, connections: renderConnections, voice: renderVoice,
     chat: renderChatSettings,
     appearance: renderAppearance, nitro: renderNitro, accessibility: renderAccessibility, advanced: renderAdvanced,
+    updates: renderUpdates,
   };
 
   /* ═══════════════════════════════════════════════════════

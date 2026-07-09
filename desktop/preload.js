@@ -23,4 +23,11 @@ contextBridge.exposeInMainWorld('kikoElectron', {
   onMaximizeChange: (callback) => {
     ipcRenderer.on('maximize-change', (_, isMaximized) => callback(isMaximized));
   },
+
+  // Screen/Window Capture Support (for WebRTC Screen Share picker)
+  getScreenSources: () => ipcRenderer.invoke('get-screen-sources'),
+  selectScreenSource: (sourceId) => ipcRenderer.send('screen-source-selected', sourceId),
+
+  // Force reload bypassing cache (for updating app)
+  forceReload: () => ipcRenderer.send('force-reload'),
 });

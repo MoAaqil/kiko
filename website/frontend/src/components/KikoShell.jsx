@@ -927,6 +927,7 @@ export default function KikoShell() {
     sendTypingStatus,
     joinCallRoom,
     callRoomId,
+    callType,
     voiceChannelsState,
     updateProfile,
     setActiveServerId,
@@ -943,7 +944,12 @@ export default function KikoShell() {
     toggleMic,
     toggleDeafen,
     unreadCounts,
+    updateAvailable,
+    latestVersion,
   } = useApp();
+
+  // Hover state for leftmost sidebar server items
+  const [hoveredServerId, setHoveredServerId] = useState(null);
 
   // Delete confirmation modal state
   const [deleteConfirmMessageId, setDeleteConfirmMessageId] = useState(null);
@@ -1241,7 +1247,10 @@ export default function KikoShell() {
   // Voice Recording Controls
   const startVoiceRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioConstraint = selectedInputDeviceId && selectedInputDeviceId !== 'default'
+        ? { deviceId: { exact: selectedInputDeviceId } }
+        : true;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraint });
       
       let options = {};
       if (typeof MediaRecorder !== 'undefined') {
@@ -1260,8 +1269,10 @@ export default function KikoShell() {
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+        const mimeType = recorder.mimeType || 'audio/webm';
+        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([blob], `voice-${Date.now()}.${extension}`, { type: mimeType });
         stream.getTracks().forEach(t => t.stop());
         // Send as file attachment
         try {
@@ -1403,9 +1414,56 @@ export default function KikoShell() {
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         transition: 'background-image 0.5s ease',
+        paddingTop: updateAvailable ? '36px' : '0px',
       }} 
       className="kiko-shell"
     >
+      {/* Dynamic Update Alert Banner */}
+      {updateAvailable && (
+        <div style={{
+          background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+          color: '#fff',
+          padding: '8px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          fontSize: '0.85rem',
+          fontWeight: '600',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+          zIndex: 1000,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '36px',
+          boxSizing: 'border-box',
+        }}>
+          <span>A new update is available (v{latestVersion}). Please restart or reload to apply the update.</span>
+          <button 
+            onClick={() => {
+              if (window.kikoElectron && window.kikoElectron.openExternal) {
+                window.kikoElectron.openExternal('https://github.com/MoAaqil/kiko/releases');
+              } else {
+                window.location.reload(true);
+              }
+            }}
+            style={{
+              background: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 10px',
+              color: '#4f46e5',
+              cursor: 'pointer',
+              fontSize: '0.78rem',
+              fontWeight: '700',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Update Now
+          </button>
+        </div>
+      )}
       {/* Mobile Drawer backdrop overlay — renders FIRST so sidebars (rendered after) are always on top */}
       {mobileSidebarOpen && isMobile && (
         <div 
@@ -1443,64 +1501,177 @@ export default function KikoShell() {
       >
         {/* Kiko Logo representing DMs */}
         <div 
-          className="logo-container" 
-          onClick={() => {
-            setActiveServerId(null);
-            setActiveChannelId(null);
-            setActiveDMUserId(null);
-            setMobileSidebarOpen(false);
-          }}
           style={{
-            ...styles.logoWrapper,
-            border: activeServerId === null ? '2px solid var(--accent-cyan)' : 'none',
+            position: 'relative',
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
+          onMouseEnter={() => setHoveredServerId('inbox')}
+          onMouseLeave={() => setHoveredServerId(null)}
         >
-          <KikoLogo size={42} />
+          {/* Left Pill */}
+          <div style={{
+            position: 'absolute',
+            left: 0,
+            width: '4px',
+            height: activeServerId === null ? '40px' : (hoveredServerId === 'inbox' ? '20px' : '0px'),
+            background: '#fff',
+            borderRadius: '0 4px 4px 0',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            opacity: activeServerId === null || hoveredServerId === 'inbox' ? 1 : 0,
+            transform: 'translateY(-50%)',
+            top: '50%'
+          }} />
+          <div 
+            className="logo-container animate-hover" 
+            onClick={() => {
+              setActiveServerId(null);
+              setActiveChannelId(null);
+              setActiveDMUserId(null);
+              setMobileSidebarOpen(false);
+            }}
+            style={{
+              ...styles.logoWrapper,
+              borderRadius: activeServerId === null || hoveredServerId === 'inbox' ? '16px' : '50%',
+              overflow: 'hidden',
+              transition: 'border-radius 0.2s ease, background-color 0.2s ease',
+            }}
+          >
+            <KikoLogo size={42} />
+          </div>
         </div>
 
         <div style={styles.divider} />
 
         {/* List of Joined Communities */}
         <div style={styles.serverListScroll}>
-          {servers.map(server => (
-            <div 
-              key={server.id}
-              style={{
-                ...styles.serverItem,
-                border: activeServerId === server.id ? '2px solid var(--accent-cyan)' : 'none',
-              }}
-              onClick={() => {
-                setActiveServerId(server.id);
-                // Find first text channel
-                const firstText = server.channels.find(c => c.type === 'TEXT');
-                if (firstText) setActiveChannelId(firstText.id);
-                setActiveDMUserId(null);
-              }}
-              title={server.name}
-            >
-              {server.iconUrl ? (
-                <img src={server.iconUrl} alt={server.name} style={styles.serverIcon} />
-              ) : (
-                server.name.substring(0, 2).toUpperCase()
-              )}
-            </div>
-          ))}
+          {servers.map(server => {
+            const isServerActive = activeServerId === server.id;
+            const isServerHovered = hoveredServerId === server.id;
+            return (
+              <div 
+                key={server.id}
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+                onMouseEnter={() => setHoveredServerId(server.id)}
+                onMouseLeave={() => setHoveredServerId(null)}
+              >
+                {/* Left Pill */}
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  width: '4px',
+                  height: isServerActive ? '40px' : (isServerHovered ? '20px' : '0px'),
+                  background: '#fff',
+                  borderRadius: '0 4px 4px 0',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  opacity: isServerActive || isServerHovered ? 1 : 0,
+                  transform: 'translateY(-50%)',
+                  top: '50%'
+                }} />
+                <div 
+                  style={{
+                    ...styles.serverItem,
+                    borderRadius: isServerActive || isServerHovered ? '16px' : '50%',
+                    transition: 'border-radius 0.2s ease, background-color 0.2s ease',
+                  }}
+                  onClick={() => {
+                    setActiveServerId(server.id);
+                    // Find first text channel
+                    const firstText = server.channels.find(c => c.type === 'TEXT');
+                    if (firstText) setActiveChannelId(firstText.id);
+                    setActiveDMUserId(null);
+                  }}
+                  title={server.name}
+                >
+                  {server.iconUrl ? (
+                    <img src={server.iconUrl} alt={server.name} style={styles.serverIcon} />
+                  ) : (
+                    server.name.substring(0, 2).toUpperCase()
+                  )}
+                </div>
+              </div>
+            );
+          })}
 
           {/* Add / Discover Buttons */}
-          <div 
-            style={styles.serverItemAction} 
-            onClick={() => setNewServerOpen(true)}
-            title="Create a Server"
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+            onMouseEnter={() => setHoveredServerId('add')}
+            onMouseLeave={() => setHoveredServerId(null)}
           >
-            <Plus size={20} color="var(--accent-cyan)" />
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              width: '4px',
+              height: hoveredServerId === 'add' ? '20px' : '0px',
+              background: '#fff',
+              borderRadius: '0 4px 4px 0',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              opacity: hoveredServerId === 'add' ? 1 : 0,
+              transform: 'translateY(-50%)',
+              top: '50%'
+            }} />
+            <div 
+              style={{
+                ...styles.serverItemAction,
+                borderRadius: hoveredServerId === 'add' ? '16px' : '50%',
+                transition: 'border-radius 0.2s ease, border-color 0.2s ease, background-color 0.2s ease',
+              }} 
+              onClick={() => setNewServerOpen(true)}
+              title="Create a Server"
+            >
+              <Plus size={20} color="var(--accent-cyan)" />
+            </div>
           </div>
 
-          <div 
-            style={styles.serverItemAction} 
-            onClick={() => setJoinServerOpen(true)}
-            title="Join Server with Invite"
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+            onMouseEnter={() => setHoveredServerId('discover')}
+            onMouseLeave={() => setHoveredServerId(null)}
           >
-            <Compass size={20} color="var(--accent-purple)" />
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              width: '4px',
+              height: hoveredServerId === 'discover' ? '20px' : '0px',
+              background: '#fff',
+              borderRadius: '0 4px 4px 0',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              opacity: hoveredServerId === 'discover' ? 1 : 0,
+              transform: 'translateY(-50%)',
+              top: '50%'
+            }} />
+            <div 
+              style={{
+                ...styles.serverItemAction,
+                borderRadius: hoveredServerId === 'discover' ? '16px' : '50%',
+                transition: 'border-radius 0.2s ease, border-color 0.2s ease, background-color 0.2s ease',
+              }} 
+              onClick={() => setJoinServerOpen(true)}
+              title="Join Server with Invite"
+            >
+              <Compass size={20} color="var(--accent-purple)" />
+            </div>
           </div>
         </div>
       </div>
@@ -2243,7 +2414,11 @@ export default function KikoShell() {
           <div style={styles.chatAreaContainer}>
             {/* Render WebRTC Streaming panel if call is active in this room */}
             {callRoomId && isCallInActiveChat && (
-              <div style={styles.rtcWidgetContainer}>
+              <div style={{
+                ...styles.rtcWidgetContainer,
+                height: callType === 'screen' ? 'min(68vh, 720px)' : '360px',
+                minHeight: callType === 'screen' ? '420px' : '260px',
+              }}>
                 <WebRTCCall />
               </div>
             )}
@@ -4185,9 +4360,9 @@ const styles = {
     position: 'relative',
   },
   rtcWidgetContainer: {
-    maxHeight: '400px',
     borderBottom: '1px solid var(--glass-border)',
     background: '#040508',
+    flexShrink: 0,
   },
   chatThreadWrapper: {
     flex: 1,

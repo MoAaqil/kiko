@@ -1,9 +1,48 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { initializeFirebase } from '../firebase.js';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile as updateFirebaseUser } from 'firebase/auth';
 
 const AppContext = createContext();
+let firebaseAuthMethodsPromise;
+
+const loadFirebaseAuthMethods = () => {
+  if (!firebaseAuthMethodsPromise) {
+    firebaseAuthMethodsPromise = import('firebase/auth');
+  }
+  return firebaseAuthMethodsPromise;
+};
+
+const shouldUseLocalAuthFallback = (error) => {
+  const code = error?.code || '';
+  const message = error?.message || '';
+  return (
+    code === 'auth/unauthorized-domain' ||
+    code === 'auth/invalid-credential' ||
+    message.includes('auth/unauthorized-domain') ||
+    message.includes('auth/invalid-credential')
+  );
+};
+
+const getMessageChatKey = (message, currentUserId) => {
+  if (message.channelId) return `channel:${message.channelId}`;
+  const curId = currentUserId ? String(currentUserId).trim() : '';
+  const mSenderId = message.userId ? String(message.userId).trim() : '';
+  const mReceiverId = message.receiverId ? String(message.receiverId).trim() : '';
+  
+  if (!curId) return null;
+  
+  let otherId = '';
+  if (mSenderId === curId) {
+    otherId = mReceiverId;
+  } else if (mReceiverId === curId) {
+    otherId = mSenderId;
+  } else {
+    return null;
+  }
+  
+  if (!otherId) return null;
+  return `dm:${[curId, otherId].sort().join('-')}`;
+};
 
 export function useApp() {
   return useContext(AppContext);
@@ -50,7 +89,7 @@ export function AppProvider({ children }) {
         if (res.ok) {
           const configData = await safeJson(res);
           if (configData.firebaseEnabled && configData.firebaseConfig) {
-            const authInstance = initializeFirebase(configData.firebaseConfig);
+            const authInstance = await initializeFirebase(configData.firebaseConfig);
             if (authInstance) {
               setAuth(authInstance);
               setIsFirebaseClientEnabled(true);
@@ -119,6 +158,11 @@ export function AppProvider({ children }) {
       });
     }
   }, [activeDMUserId]);
+
+  // Application Version & Updates
+  const CURRENT_VERSION = '1.0.0';
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [latestVersion, setLatestVersion] = useState('1.0.0');
 
   // WebRTC Call states
   const [callRoomId, setCallRoomId] = useState(null);
@@ -377,13 +421,22 @@ export function AppProvider({ children }) {
     // ── Chat events ──────────────────────────────────────────
 
     socket.on('new_message', (msg) => {
-      const chatKey = msg.channelId
-        ? `channel:${msg.channelId}`
-        : `dm:${[msg.userId, msg.receiverId].sort().join('-')}`;
-      setMessages((prev) => ({
-        ...prev,
-        [chatKey]: [...(prev[chatKey] || []), msg],
-      }));
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
+      const chatKey = getMessageChatKey(msg, currentId);
+      if (!chatKey) return;
+      setMessages((prev) => {
+        const existing = prev[chatKey] || [];
+        const next = existing.some((m) => m.id === msg.id)
+          ? existing.map((m) => (m.id === msg.id ? msg : m))
+          : [...existing, msg];
+        return { ...prev, [chatKey]: next };
+      });
 
       // If we are currently looking at this DM, mark incoming message as read
       if (!msg.channelId && msg.userId === activeDMUserIdRef.current) {
@@ -398,9 +451,15 @@ export function AppProvider({ children }) {
     });
 
     socket.on('message_updated', (updatedMsg) => {
-      const chatKey = updatedMsg.channelId
-        ? `channel:${updatedMsg.channelId}`
-        : `dm:${[updatedMsg.userId, updatedMsg.receiverId].sort().join('-')}`;
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
+      const chatKey = getMessageChatKey(updatedMsg, currentId);
+      if (!chatKey) return;
       setMessages((prev) => {
         const list = prev[chatKey] || [];
         const updatedList = list.map((m) => m.id === updatedMsg.id ? updatedMsg : m);
@@ -409,7 +468,13 @@ export function AppProvider({ children }) {
     });
 
     socket.on('message_deleted', ({ messageId, channelId, receiverId, senderId }) => {
-      const currentId = currentUserRef.current?.id;
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
       const otherId = senderId === currentId ? receiverId : senderId;
       const chatKey = channelId
         ? `channel:${channelId}`
@@ -421,7 +486,13 @@ export function AppProvider({ children }) {
     });
 
     socket.on('chat_cleared', ({ channelId, senderId }) => {
-      const currentId = currentUserRef.current?.id;
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
       const chatKey = channelId
         ? `channel:${channelId}`
         : `dm:${[currentId, senderId].sort().join('-')}`;
@@ -432,7 +503,13 @@ export function AppProvider({ children }) {
     });
 
     socket.on('messages_read', ({ readerId }) => {
-      const currentId = currentUserRef.current?.id;
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
       const chatKey = `dm:${[currentId, readerId].sort().join('-')}`;
       setMessages((prev) => {
         const list = prev[chatKey] || [];
@@ -444,7 +521,13 @@ export function AppProvider({ children }) {
     });
 
     socket.on('messages_delivered', ({ receiverId, messageIds }) => {
-      const currentId = currentUserRef.current?.id;
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
       const chatKey = `dm:${[currentId, receiverId].sort().join('-')}`;
       setMessages((prev) => {
         const list = prev[chatKey] || [];
@@ -456,7 +539,13 @@ export function AppProvider({ children }) {
     });
 
     socket.on('message_attachment_expired', ({ messageId, channelId, receiverId }) => {
-      const currentId = currentUserRef.current?.id;
+      let currentId = currentUserRef.current?.id;
+      if (!currentId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentId = payload.id;
+        } catch (e) {}
+      }
       const chatKey = channelId
         ? `channel:${channelId}`
         : `dm:${[currentId, receiverId].sort().join('-')}`;
@@ -708,11 +797,16 @@ export function AppProvider({ children }) {
 
     if (isFirebaseClientEnabled && auth) {
       try {
+        const { createUserWithEmailAndPassword, updateProfile } = await loadFirebaseAuthMethods();
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
-        await updateFirebaseUser(userCred.user, { displayName });
+        await updateProfile(userCred.user, { displayName });
         tokenToUse = await userCred.user.getIdToken();
       } catch (err) {
-        throw new Error(err.message || 'Firebase sign up failed');
+        if (shouldUseLocalAuthFallback(err)) {
+          console.warn('[FirebaseClient] Falling back to local registration:', err.message);
+        } else {
+          throw new Error(err.message || 'Firebase sign up failed');
+        }
       }
     }
 
@@ -752,6 +846,7 @@ export function AppProvider({ children }) {
 
     if (isFirebaseClientEnabled && auth) {
       try {
+        const { signInWithEmailAndPassword } = await loadFirebaseAuthMethods();
         let email = emailOrUsername;
         if (!emailOrUsername.includes('@')) {
           const emailRes = await apiFetch(`/api/auth/email-by-username?username=${encodeURIComponent(emailOrUsername)}`);
@@ -763,7 +858,11 @@ export function AppProvider({ children }) {
         const userCred = await signInWithEmailAndPassword(auth, email, password);
         tokenToUse = await userCred.user.getIdToken();
       } catch (err) {
-        throw new Error(err.message || 'Firebase sign in failed');
+        if (shouldUseLocalAuthFallback(err)) {
+          console.warn('[FirebaseClient] Falling back to local sign in:', err.message);
+        } else {
+          throw new Error(err.message || 'Firebase sign in failed');
+        }
       }
     }
 
@@ -802,7 +901,7 @@ export function AppProvider({ children }) {
     // 1. If Firebase Client is enabled, use real Firebase Google Auth
     if (isFirebaseClientEnabled && auth) {
       try {
-        const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
+        const { GoogleAuthProvider, signInWithPopup } = await loadFirebaseAuthMethods();
         const provider = new GoogleAuthProvider();
         const userCred = await signInWithPopup(auth, provider);
         const tokenToUse = await userCred.user.getIdToken();
@@ -820,6 +919,9 @@ export function AppProvider({ children }) {
         setCurrentUser(data.user);
         return data.user;
       } catch (err) {
+        if (shouldUseLocalAuthFallback(err)) {
+          throw new Error('MOCK_SIMULATION_REQUIRED');
+        }
         throw new Error(err.message || 'Firebase Google Sign-In failed');
       }
     }
@@ -863,7 +965,10 @@ export function AppProvider({ children }) {
     leaveCallRoom();
 
     if (isFirebaseClientEnabled && auth) {
-      try { await signOut(auth); } catch (e) { /* ignore */ }
+      try {
+        const { signOut } = await loadFirebaseAuthMethods();
+        await signOut(auth);
+      } catch (e) { /* ignore */ }
     }
 
     try {
@@ -901,6 +1006,44 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (token) loadUser();
+  }, [token]);
+
+  // Automated version checking for updates
+  useEffect(() => {
+    if (!token) return;
+    
+    const checkUpdate = async () => {
+      try {
+        const res = await fetch('/version.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.version && data.version !== CURRENT_VERSION) {
+            setUpdateAvailable(true);
+            setLatestVersion(data.version);
+            
+            // Show native desktop notification if running in Electron
+            if (window.kikoElectron) {
+              window.kikoElectron.showNotification(
+                'Kiko Update Available',
+                `Version ${data.version} is ready. Click to reload and apply the update.`
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[AppContext] Version check failed:', e);
+      }
+    };
+
+    // Check 5 seconds after startup
+    const initialTimeout = setTimeout(checkUpdate, 5000);
+    // Check every 5 minutes
+    const interval = setInterval(checkUpdate, 5 * 60 * 1000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, [token]);
 
   // Update Profile
@@ -1071,7 +1214,23 @@ export function AppProvider({ children }) {
       });
       if (res.ok) {
         const data = await safeJson(res);
-        setMessages((prev) => ({ ...prev, [chatKey]: data }));
+        setMessages((prev) => {
+          const existing = prev[chatKey] || [];
+          if (data.length === 0 && existing.length > 0) {
+            return prev;
+          }
+          const merged = [...existing];
+          data.forEach((incoming) => {
+            const index = merged.findIndex((msg) => msg.id === incoming.id);
+            if (index >= 0) {
+              merged[index] = incoming;
+            } else {
+              merged.push(incoming);
+            }
+          });
+          merged.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+          return { ...prev, [chatKey]: merged };
+        });
       }
     } catch (e) {
       console.error('Error fetching messages', e);
@@ -1115,6 +1274,19 @@ export function AppProvider({ children }) {
   };
 
   const clearChat = () => {
+    const chatKey = activeChannelId
+      ? `channel:${activeChannelId}`
+      : activeDMUserId
+        ? `dm:${[currentUser?.id, activeDMUserId].sort().join('-')}`
+        : null;
+
+    if (chatKey) {
+      setMessages((prev) => ({
+        ...prev,
+        [chatKey]: [],
+      }));
+    }
+
     if (socketRef.current) {
       if (activeChannelId) {
         socketRef.current.emit('clear_chat', { channelId: activeChannelId });
@@ -1451,6 +1623,11 @@ export function AppProvider({ children }) {
         setActiveChannelId,
         setActiveDMUserId,
         connected,
+        
+        // Updates
+        updateAvailable,
+        latestVersion,
+        CURRENT_VERSION,
 
         // Auth
         login,
