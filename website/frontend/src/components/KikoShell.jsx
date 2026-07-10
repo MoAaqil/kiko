@@ -3006,6 +3006,7 @@ export default function KikoShell() {
 
                   <div style={{
                     ...styles.inputContainer,
+                    padding: isMobile ? '8px 10px' : '8px 14px',
                     ...(isRecording ? { border: '1.5px solid rgba(239,68,68,0.5)', background: 'rgba(239,68,68,0.04)' } : {})
                   }}>
                      {/* Attachment clip + game button */}
@@ -3148,9 +3149,11 @@ export default function KikoShell() {
                           </button>
                         )}
                         {/* Send */}
-                        <button type="submit" style={{ ...styles.sendSubmitBtn, flexShrink: 0 }} onClick={() => playSFX('click')}>
-                          <Send size={18} color="#fff" />
-                        </button>
+                        {(chatInput || selectedFile) && (
+                          <button type="submit" style={{ ...styles.sendSubmitBtn, flexShrink: 0 }} onClick={() => playSFX('click')}>
+                            <Send size={18} color="#fff" />
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -4849,6 +4852,7 @@ const styles = {
   },
   chatInputText: {
     flex: 1,
+    width: '100%',
     background: 'transparent',
     border: 'none',
     color: '#fff',
