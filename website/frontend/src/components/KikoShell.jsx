@@ -2933,7 +2933,7 @@ export default function KikoShell() {
                 )}
 
                 {/* Input Text Form */}
-                <form onSubmit={handleSendMessage} style={styles.chatInputForm}>
+                <form onSubmit={handleSendMessage} style={{ ...styles.chatInputForm, padding: isMobile ? '0 8px 8px 8px' : '0 12px 12px 12px' }}>
                   {/* Markdown Toolbar */}
                   {showMdToolbar && !isRecording && (
                     <div style={{
@@ -4855,6 +4855,7 @@ const styles = {
     outline: 'none',
     fontFamily: 'var(--font-text)',
     fontSize: '0.92rem',
+    minWidth: 0,
   },
   emojiBtn: {
     background: 'transparent',
