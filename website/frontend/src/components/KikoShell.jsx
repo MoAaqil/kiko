@@ -3282,7 +3282,7 @@ export default function KikoShell() {
                 <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
                   
                   {/* Left Column: Friends List Panel */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.05)' }}>
                     
                     {/* Search box inside dashboard */}
                     <div style={{ position: 'relative', marginBottom: '20px' }}>
@@ -3475,70 +3475,71 @@ export default function KikoShell() {
                   </div>
 
                   {/* Right Column: "Active Now" Sidebar (Image 1) */}
-                  <div style={{
-                    width: '360px',
-                    background: '#313338',
-                    padding: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                    overflowY: 'auto',
-                    userSelect: 'none',
-                  }}>
-                    <h3 style={{ fontSize: '1.25rem', color: '#fff', fontWeight: '800', margin: '0 0 10px 0' }}>Active Now</h3>
-                    
-                    {/* Mock Active Activity Card matching ketchup playing VALORANT (Image 1) */}
+                  {!isMobile && (
                     <div style={{
-                      background: '#1e1f22',
-                      borderRadius: '12px',
-                      padding: '16px',
-                      border: '1px solid rgba(255,255,255,0.05)',
+                      width: '360px',
+                      background: '#313338',
+                      padding: '20px',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '12px',
+                      gap: '16px',
+                      overflowY: 'auto',
+                      userSelect: 'none',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ position: 'relative' }}>
-                          <img 
-                            src="https://api.dicebear.com/7.x/bottts/svg?seed=ketchup" 
-                            alt="ketchup" 
-                            style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#2b2d31' }} 
-                          />
-                          <span style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '12px', height: '12px', borderRadius: '50%', background: '#23a55a', border: '2px solid #1e1f22' }} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '700' }}>ketchup</div>
-                          <div style={{ fontSize: '0.74rem', color: '#f84552', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{
-                              width: '8px', height: '8px', borderRadius: '50%', background: '#ff4655', display: 'inline-block'
-                            }} />
-                            VALORANT
+                      <h3 style={{ fontSize: '1.25rem', color: '#fff', fontWeight: '800', margin: '0 0 10px 0' }}>Active Now</h3>
+                      
+                      {/* Mock Active Activity Card matching ketchup playing VALORANT (Image 1) */}
+                      <div style={{
+                        background: '#1e1f22',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ position: 'relative' }}>
+                            <img 
+                              src="https://api.dicebear.com/7.x/bottts/svg?seed=ketchup" 
+                              alt="ketchup" 
+                              style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#2b2d31' }} 
+                            />
+                            <span style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '12px', height: '12px', borderRadius: '50%', background: '#23a55a', border: '2px solid #1e1f22' }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '700' }}>ketchup</div>
+                            <div style={{ fontSize: '0.74rem', color: '#f84552', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{
+                                width: '8px', height: '8px', borderRadius: '50%', background: '#ff4655', display: 'inline-block'
+                              }} />
+                              VALORANT
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div style={{
-                        background: '#2b2d31',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}>
-                        <div>
-                          <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: '600' }}>VALORANT</div>
-                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Playing for 33m</div>
+                        <div style={{
+                          background: '#2b2d31',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '0.8', color: '#fff', fontWeight: '600' }}>VALORANT</div>
+                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Playing for 33m</div>
+                          </div>
+                          <span style={{ fontSize: '1.25rem' }}>🎮</span>
                         </div>
-                        <span style={{ fontSize: '1.25rem' }}>🎮</span>
+                      </div>
+
+                      {/* Active activities info placeholder for other users */}
+                      <div style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.3)', marginTop: 'auto', textAlign: 'center', lineHeight: '1.4' }}>
+                        It's quiet for now... When a friend starts an activity (like playing games or listening to music), it will show up here!
                       </div>
                     </div>
-
-                    {/* Active activities info placeholder for other users */}
-                    <div style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.3)', marginTop: 'auto', textAlign: 'center', lineHeight: '1.4' }}>
-                      It's quiet for now... When a friend starts an activity (like playing games or listening to music), it will show up here!
-                    </div>
-
-                  </div>
+                  )}
                 </div>
 
               </div>
