@@ -115,6 +115,17 @@ function createWindow() {
     },
   });
 
+  // Automatically approve media (microphone/camera), notification, and geolocation permission requests
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'notifications', 'geolocation', 'audio', 'video'];
+    callback(allowedPermissions.includes(permission));
+  });
+
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, origin) => {
+    const allowedPermissions = ['media', 'notifications', 'geolocation', 'audio', 'video'];
+    return allowedPermissions.includes(permission);
+  });
+
   // Show loading screen immediately
   mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(getLoadingHTML())}`);
   mainWindow.once('ready-to-show', () => {

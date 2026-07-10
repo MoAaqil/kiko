@@ -4,7 +4,7 @@ import {
   MessageSquare, Users, Hash, Plus, Search, X, CornerUpLeft, Send,
   Paperclip, Volume2, Video, Compass, Shield, LogOut, Trash2, Menu,
   Gamepad2, Copy, Check, Phone, Monitor, Mic, MicOff, Headphones, Settings,
-  ChevronDown, MoreVertical, User, Link2, HelpCircle, Moon, Sun, Sliders
+  ChevronDown, MoreVertical, User, Link2, HelpCircle, Moon, Sun, Sliders, Pencil
 } from 'lucide-react';
 import WebRTCCall from './WebRTCCall.jsx';
 import ProfileModal from './ProfileModal.jsx';
@@ -997,6 +997,8 @@ export default function KikoShell() {
   // Dialog / Modal Visibility States
   const [profileOpen, setProfileOpen] = useState(false);
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
+  const [showAmpBanner, setShowAmpBanner] = useState(true);
+  const [showStatusSelect, setShowStatusSelect] = useState(false);
   const [searchEngineOpen, setSearchEngineOpen] = useState(false);
   const [newServerOpen, setNewServerOpen] = useState(false);
   const [joinServerOpen, setJoinServerOpen] = useState(false);
@@ -1009,6 +1011,7 @@ export default function KikoShell() {
   const [channelName, setChannelName] = useState('');
   const [channelType, setChannelType] = useState('TEXT');
   const [friendUsername, setFriendUsername] = useState('');
+  const [friendsSearch, setFriendsSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   // UI view states
@@ -1497,7 +1500,7 @@ export default function KikoShell() {
             boxShadow: mobileSidebarOpen ? '4px 0 20px rgba(0,0,0,0.6)' : 'none',
           } : {})
         }}
-        className="kiko-server-bar"
+        className={`kiko-server-bar ${mobileSidebarOpen ? 'open' : ''}`}
       >
         {/* Kiko Logo representing DMs */}
         <div 
@@ -1696,7 +1699,7 @@ export default function KikoShell() {
             boxShadow: mobileSidebarOpen ? '4px 0 20px rgba(0,0,0,0.4)' : 'none',
           } : {})
         }}
-        className="glass-panel kiko-sub-sidebar"
+        className={`glass-panel kiko-sub-sidebar ${mobileSidebarOpen ? 'open' : ''}`}
       >
         {activeServerId ? (
           // Server Channels lists
@@ -2198,7 +2201,7 @@ export default function KikoShell() {
             <button
               className="kiko-mobile-menu-btn"
               onClick={() => setMobileSidebarOpen(true)}
-              style={styles.mobileMenuBtn}
+              style={{ ...styles.mobileMenuBtn, display: isMobile ? 'flex' : 'none' }}
               title="Open Navigation"
             >
               <Menu size={20} color="var(--text-primary)" />
@@ -2219,9 +2222,9 @@ export default function KikoShell() {
             ) : activeDMUserId ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                 <div style={{ ...styles.avatarWrapper, flexShrink: 0 }}>
-                  <img src={activeDMFriend?.friend?.avatarUrl} alt={activeDMFriend?.friend?.username} style={{ ...styles.headerAvatar, width: '34px', height: '34px' }} />
+                  <img src={activeDMFriend?.friend?.avatarUrl} alt={activeDMFriend?.friend?.username || 'user'} style={{ ...styles.headerAvatar, width: '34px', height: '34px' }} />
                   {activeDMFriend?.friend?.avatarDecoration && (
-                    <span className={`avatar-decoration ${activeDMFriend.friend.avatarDecoration}`} />
+                    <span className={`avatar-decoration ${activeDMFriend?.friend?.avatarDecoration || ''}`} />
                   )}
                   <span className={`status-dot ${activeDMFriend?.friend?.status}`} style={styles.headerStatusDot} />
                 </div>
@@ -2465,7 +2468,7 @@ export default function KikoShell() {
                         }}>
                           {activeDMFriend?.friend?.avatarUrl ? (
                             <img
-                              src={activeDMFriend.friend.avatarUrl}
+                              src={activeDMFriend?.friend?.avatarUrl}
                               alt=""
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
@@ -3156,163 +3159,385 @@ export default function KikoShell() {
 
             ) : (
               // Friends list dashboard
-              <div style={styles.friendsDashboard}>
-                <div style={styles.friendsHeaderTabs}>
-                  <button 
-                    style={{
-                      ...styles.headerTabBtn,
-                      borderBottom: friendTab === 'online' ? '2px solid var(--accent-cyan)' : 'none',
-                    }}
-                    onClick={() => setFriendTab('online')}
-                  >
-                    Online
-                  </button>
-                  <button 
-                    style={{
-                      ...styles.headerTabBtn,
-                      borderBottom: friendTab === 'all' ? '2px solid var(--accent-cyan)' : 'none',
-                    }}
-                    onClick={() => setFriendTab('all')}
-                  >
-                    All Friends
-                  </button>
-                  <button 
-                    style={{
-                      ...styles.headerTabBtn,
-                      borderBottom: friendTab === 'pending' ? '2px solid var(--accent-cyan)' : 'none',
-                    }}
-                    onClick={() => setFriendTab('pending')}
-                  >
-                    Pending Requests
-                  </button>
-                  <button 
-                    style={{
-                      ...styles.headerTabBtn,
-                      borderBottom: friendTab === 'add' ? '2px solid var(--accent-cyan)' : 'none',
-                      color: 'var(--accent-cyan)'
-                    }}
-                    onClick={() => setFriendTab('add')}
-                  >
-                    Add Friend +
-                  </button>
+              // Friends list dashboard
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+                background: '#313338',
+              }}>
+                {/* Redesigned Friends Header (Image 1) */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 16px',
+                  height: '48px',
+                  borderBottom: '1px solid rgba(0,0,0,0.2)',
+                  background: '#313338',
+                  gap: '16px',
+                  userSelect: 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', fontSize: '0.95rem' }}>
+                    <Users size={20} />
+                    <span style={{ color: '#fff' }}>Friends</span>
+                  </div>
+
+                  <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.1)' }} />
+
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <button 
+                      style={{
+                        background: friendTab === 'online' ? '#35373c' : 'transparent',
+                        border: 'none',
+                        color: friendTab === 'online' ? '#fff' : 'rgba(255,255,255,0.6)',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                      }}
+                      onClick={() => setFriendTab('online')}
+                    >
+                      Online
+                    </button>
+                    <button 
+                      style={{
+                        background: friendTab === 'all' ? '#35373c' : 'transparent',
+                        border: 'none',
+                        color: friendTab === 'all' ? '#fff' : 'rgba(255,255,255,0.6)',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                      }}
+                      onClick={() => setFriendTab('all')}
+                    >
+                      All
+                    </button>
+                    <button 
+                      style={{
+                        background: friendTab === 'pending' ? '#35373c' : 'transparent',
+                        border: 'none',
+                        color: friendTab === 'pending' ? '#fff' : 'rgba(255,255,255,0.6)',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                      }}
+                      onClick={() => setFriendTab('pending')}
+                    >
+                      Pending
+                    </button>
+                    <button 
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.6)',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                      onClick={() => showToast('Suggestions list is empty.')}
+                    >
+                      Suggestions
+                      <span style={{
+                        background: '#f23f43',
+                        color: '#fff',
+                        fontSize: '0.65rem',
+                        fontWeight: '800',
+                        padding: '1px 6px',
+                        borderRadius: '10px'
+                      }}>31</span>
+                    </button>
+                    <button 
+                      style={{
+                        background: '#248046',
+                        border: 'none',
+                        color: '#fff',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                      }}
+                      onClick={() => setFriendTab('add')}
+                    >
+                      Add Friend
+                    </button>
+                  </div>
                 </div>
 
-                <div style={styles.friendsContentScroll}>
-                  {friendTab === 'add' && (
-                    <form onSubmit={handleAddFriend} style={styles.addFriendForm} className="glass-panel">
-                      <h3>ADD FRIEND</h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '15px' }}>
-                        Enter your friend's exact username to connect.
-                      </p>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <input
-                          type="text"
-                          className="input-field"
-                          placeholder="Friend's username"
-                          required
-                          value={friendUsername}
-                          onChange={(e) => setFriendUsername(e.target.value)}
-                        />
-                        <button type="submit" className="btn btn-primary">Send Request</button>
-                      </div>
-                    </form>
-                  )}
+                {/* 2-Column Main Content Body */}
+                <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+                  
+                  {/* Left Column: Friends List Panel */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+                    
+                    {/* Search box inside dashboard */}
+                    <div style={{ position: 'relative', marginBottom: '20px' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Search" 
+                        value={friendsSearch}
+                        onChange={(e) => setFriendsSearch(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: '32px',
+                          background: '#1e1f22',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          padding: '0 32px 0 10px',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                        }}
+                      />
+                      <Search size={16} color="rgba(255,255,255,0.3)" style={{ position: 'absolute', right: '10px', top: '8px' }} />
+                    </div>
 
-                  {friendTab === 'pending' && (
-                    <div style={styles.friendsListCol}>
-                      {friends.filter(f => f.status.startsWith('PENDING')).length === 0 ? (
-                        <p style={{ color: 'var(--text-muted)' }}>No pending requests.</p>
-                      ) : (
-                        friends.filter(f => f.status.startsWith('PENDING')).map(rel => (
-                          <div key={rel.id} style={styles.friendRow} className="glass-panel">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <img src={rel.friend.avatarUrl} alt={rel.friend.username} style={styles.friendRowAvatar} />
-                              <div>
-                                <h4 style={{ fontSize: '0.95rem' }}>{rel.friend.displayName}</h4>
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>@{rel.friend.username}</span>
+                    {friendTab === 'add' && (
+                      <form onSubmit={handleAddFriend} style={{ ...styles.addFriendForm, background: '#2b2d31', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <h3 style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', fontWeight: '800', letterSpacing: '0.8px', marginBottom: '8px', textTransform: 'uppercase' }}>Add Friend</h3>
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginBottom: '15px' }}>
+                          You can add friends with their Kiko username tag.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <input
+                            type="text"
+                            className="input-field"
+                            placeholder="username#1234"
+                            required
+                            value={friendUsername}
+                            onChange={(e) => setFriendUsername(e.target.value)}
+                            style={{
+                              flex: 1,
+                              background: '#1e1f22',
+                              border: '1px solid rgba(0,0,0,0.3)',
+                              borderRadius: '4px',
+                              padding: '8px 12px',
+                              color: '#fff',
+                              outline: 'none',
+                            }}
+                          />
+                          <button type="submit" style={{ background: '#5865f2', color: '#fff', border: 'none', borderRadius: '4px', padding: '0 16px', fontWeight: '600', cursor: 'pointer' }}>Send Request</button>
+                        </div>
+                      </form>
+                    )}
+
+                    {friendTab === 'pending' && (
+                      <div style={styles.friendsListCol}>
+                        {friends.filter(f => f.status.startsWith('PENDING')).length === 0 ? (
+                          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>No pending requests.</p>
+                        ) : (
+                          friends.filter(f => f.status.startsWith('PENDING')).map(rel => (
+                            <div key={rel.id} style={{ ...styles.friendRow, background: '#2b2d31', border: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <img src={rel.friend.avatarUrl} alt={rel.friend.username} style={styles.friendRowAvatar} />
+                                <div>
+                                  <h4 style={{ fontSize: '0.9rem', color: '#fff', margin: 0 }}>{rel.friend.displayName}</h4>
+                                  <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>@{rel.friend.username}</span>
+                                </div>
+                              </div>
+                              
+                              <div style={{ display: 'flex', gap: '10px' }}>
+                                {rel.status === 'PENDING_RECEIVED' ? (
+                                  <>
+                                    <button
+                                      style={{ background: '#23a55a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
+                                      onClick={() => respondFriendRequest(rel.friend.id, 'ACCEPT').then(msg => showToast(msg || 'Friend added!', 'success')).catch(err => showToast(err.message, 'error'))}
+                                    >
+                                      Accept
+                                    </button>
+                                    <button
+                                      style={{ background: '#f23f43', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
+                                      onClick={() => respondFriendRequest(rel.friend.id, 'DECLINE').then(() => showToast('Request declined.', 'info')).catch(err => showToast(err.message, 'error'))}
+                                    >
+                                      Decline
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>Outgoing request sent</span>
+                                )}
                               </div>
                             </div>
-                            
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              {rel.status === 'PENDING_RECEIVED' ? (
-                                <>
-                                  <button
-                                    className="btn btn-primary"
-                                    onClick={() => respondFriendRequest(rel.friend.id, 'ACCEPT').then(msg => showToast(msg || 'Friend added!', 'success')).catch(err => showToast(err.message, 'error'))}
-                                  >
-                                    Accept
-                                  </button>
-                                  <button
-                                    className="btn"
-                                    onClick={() => respondFriendRequest(rel.friend.id, 'DECLINE').then(() => showToast('Request declined.', 'info')).catch(err => showToast(err.message, 'error'))}
-                                  >
-                                    Decline
-                                  </button>
-                                </>
-                              ) : (
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Outgoing request sent</span>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
+                          ))
+                        )}
+                      </div>
+                    )}
 
-                  {(friendTab === 'online' || friendTab === 'all') && (
-                    <div style={styles.friendsListCol}>
-                      {friends.filter(f => {
-                        if (f.status !== 'ACCEPTED') return false;
-                        if (friendTab === 'online') return f.friend.status !== 'offline';
-                        return true;
-                      }).length === 0 ? (
-                        <p style={{ color: 'var(--text-muted)' }}>No friends found.</p>
-                      ) : (
-                        friends.filter(f => {
+                    {(friendTab === 'online' || friendTab === 'all') && (
+                      <div style={styles.friendsListCol}>
+                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: '800', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                          {friendTab === 'online' ? 'Online' : 'All Friends'} — {
+                            friends.filter(f => {
+                              if (f.status !== 'ACCEPTED') return false;
+                              if (friendTab === 'online') return f.friend.status !== 'offline';
+                              if (friendsSearch) {
+                                const q = friendsSearch.toLowerCase();
+                                return f.friend.username.toLowerCase().includes(q) || (f.friend.displayName || '').toLowerCase().includes(q);
+                              }
+                              return true;
+                            }).length
+                          }
+                        </div>
+                        {friends.filter(f => {
                           if (f.status !== 'ACCEPTED') return false;
                           if (friendTab === 'online') return f.friend.status !== 'offline';
+                          if (friendsSearch) {
+                            const q = friendsSearch.toLowerCase();
+                            return f.friend.username.toLowerCase().includes(q) || (f.friend.displayName || '').toLowerCase().includes(q);
+                          }
                           return true;
-                        }).map(rel => (
-                          <div key={rel.id} style={styles.friendRow} className="glass-panel">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={styles.avatarWrapper}>
-                                <img src={rel.friend.avatarUrl} alt={rel.friend.username} style={styles.friendRowAvatar} />
-                                <span className={`status-dot ${rel.friend.status}`} style={styles.friendStatusDot} />
+                        }).length === 0 ? (
+                          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>No friends found.</p>
+                        ) : (
+                          friends.filter(f => {
+                            if (f.status !== 'ACCEPTED') return false;
+                            if (friendTab === 'online') return f.friend.status !== 'offline';
+                            if (friendsSearch) {
+                              const q = friendsSearch.toLowerCase();
+                              return f.friend.username.toLowerCase().includes(q) || (f.friend.displayName || '').toLowerCase().includes(q);
+                            }
+                            return true;
+                          }).map(rel => (
+                            <div key={rel.id} style={{ ...styles.friendRow, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '10px 14px', borderRadius: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ position: 'relative' }}>
+                                  <img src={rel.friend.avatarUrl} alt={rel.friend.username} style={styles.friendRowAvatar} />
+                                  <span className={`status-dot ${rel.friend.status}`} style={{ ...styles.friendStatusDot, border: '2px solid #313338' }} />
+                                </div>
+                                <div>
+                                  <h4 style={{ fontSize: '0.9rem', color: '#fff', margin: 0 }}>{rel.friend.displayName}</h4>
+                                  <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
+                                    @{rel.friend.username} {rel.friend.customStatus ? `• ${rel.friend.customStatus}` : ''}
+                                  </span>
+                                </div>
                               </div>
-                              <div>
-                                <h4 style={{ fontSize: '0.95rem' }}>{rel.friend.displayName}</h4>
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                  @{rel.friend.username} {rel.friend.customStatus ? `• ${rel.friend.customStatus}` : ''}
-                                </span>
+                              
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: '#fff',
+                                    borderRadius: '50%',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => {
+                                    setActiveServerId(null);
+                                    setActiveChannelId(null);
+                                    setActiveDMUserId(rel.friend.id);
+                                  }}
+                                  title="Message"
+                                >
+                                  <MessageSquare size={15} />
+                                </button>
+                                <button
+                                  style={{
+                                    background: 'rgba(239,68,68,0.1)',
+                                    border: '1px solid rgba(239,68,68,0.2)',
+                                    color: '#f87171',
+                                    borderRadius: '50%',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => removeFriend(rel.friend.id).then(() => showToast('Friend removed.', 'info')).catch(err => showToast(err.message, 'error'))}
+                                  title="Remove Friend"
+                                >
+                                  ✕
+                                </button>
                               </div>
                             </div>
-                            
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button
-                                className="btn"
-                                onClick={() => {
-                                  setActiveServerId(null);
-                                  setActiveChannelId(null);
-                                  setActiveDMUserId(rel.friend.id);
-                                }}
-                              >
-                                <MessageSquare size={14} />
-                                <span>Message</span>
-                              </button>
-                              <button
-                                className="btn"
-                                style={{ borderColor: 'var(--dnd)', color: '#ff6b6b' }}
-                                onClick={() => removeFriend(rel.friend.id).then(() => showToast('Friend removed.', 'info')).catch(err => showToast(err.message, 'error'))}
-                              >
-                                Remove
-                              </button>
-                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: "Active Now" Sidebar (Image 1) */}
+                  <div style={{
+                    width: '360px',
+                    background: '#313338',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    overflowY: 'auto',
+                    userSelect: 'none',
+                  }}>
+                    <h3 style={{ fontSize: '1.25rem', color: '#fff', fontWeight: '800', margin: '0 0 10px 0' }}>Active Now</h3>
+                    
+                    {/* Mock Active Activity Card matching ketchup playing VALORANT (Image 1) */}
+                    <div style={{
+                      background: '#1e1f22',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ position: 'relative' }}>
+                          <img 
+                            src="https://api.dicebear.com/7.x/bottts/svg?seed=ketchup" 
+                            alt="ketchup" 
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#2b2d31' }} 
+                          />
+                          <span style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '12px', height: '12px', borderRadius: '50%', background: '#23a55a', border: '2px solid #1e1f22' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '700' }}>ketchup</div>
+                          <div style={{ fontSize: '0.74rem', color: '#f84552', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{
+                              width: '8px', height: '8px', borderRadius: '50%', background: '#ff4655', display: 'inline-block'
+                            }} />
+                            VALORANT
                           </div>
-                        ))
-                      )}
+                        </div>
+                      </div>
+
+                      <div style={{
+                        background: '#2b2d31',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: '600' }}>VALORANT</div>
+                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Playing for 33m</div>
+                        </div>
+                        <span style={{ fontSize: '1.25rem' }}>🎮</span>
+                      </div>
                     </div>
-                  )}
+
+                    {/* Active activities info placeholder for other users */}
+                    <div style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.3)', marginTop: 'auto', textAlign: 'center', lineHeight: '1.4' }}>
+                      It's quiet for now... When a friend starts an activity (like playing games or listening to music), it will show up here!
+                    </div>
+
+                  </div>
                 </div>
+
               </div>
             )}
           </div>
@@ -3764,221 +3989,280 @@ export default function KikoShell() {
             position: 'absolute',
             bottom: '76px',
             left: '16px',
-            width: '280px',
-            borderRadius: '20px',
-            background: 'var(--popover-bg, #181922)',
-            border: '1px solid var(--popover-border, rgba(255,255,255,0.08))',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
-            padding: '16px',
+            width: '300px',
+            borderRadius: '16px',
+            background: '#111214',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 24px 70px rgba(0,0,0,0.6)',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
+            paddingBottom: '16px',
             zIndex: 1000,
+            overflow: 'hidden',
           }}
         >
-          {/* Header: Avatar + User Info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="avatar-wrapper" style={{ width: '48px', height: '48px', flexShrink: 0 }}>
+          {/* Header Banner */}
+          <div style={{
+            height: '60px',
+            background: currentUser?.bannerColor || '#7c3aed',
+            position: 'relative',
+          }}>
+            {currentUser?.profileEffect && <ProfileEffects type={currentUser.profileEffect} />}
+          </div>
+
+          {/* Avatar Area & Custom Status overlapping */}
+          <div style={{
+            position: 'relative',
+            padding: '0 12px',
+            marginTop: '-40px',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            marginBottom: '4px',
+          }}>
+            <div style={{ position: 'relative' }}>
               <img 
                 src={currentUser?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser?.username}`} 
                 alt={currentUser?.displayName} 
-                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  border: '6px solid #111214',
+                  background: '#1a1a2e',
+                  objectFit: 'cover',
+                }} 
               />
-              {currentUser?.avatarDecoration && (
-                <span className={`avatar-decoration ${currentUser.avatarDecoration}`} />
-              )}
+              <span 
+                className={`status-dot ${currentUser?.status || 'online'}`} 
+                style={{
+                  position: 'absolute',
+                  bottom: '2px',
+                  right: '2px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: '4px solid #111214',
+                }}
+              />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--popover-text, #fff)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+
+            {/* Custom Status Pill */}
+            <div 
+              onClick={async () => {
+                const newStatus = prompt("Enter your custom status:", currentUser?.customStatus || "");
+                if (newStatus !== null) {
+                  try {
+                    await updateProfile({ customStatus: newStatus });
+                  } catch (err) {
+                    showToast('Failed to update status', 'error');
+                  }
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                padding: '6px 12px',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                fontSize: '0.72rem',
+                color: '#fff',
+                fontWeight: '500',
+                marginBottom: '4px',
+                maxWidth: '160px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title="Set custom status"
+            >
+              <span>💭</span>
+              <span>{currentUser?.customStatus || '+ Best dad joke?'}</span>
+            </div>
+          </div>
+
+          {/* User Name & Handle */}
+          <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontWeight: '700', fontSize: '1.1rem', color: '#fff' }}>
                 {currentUser?.displayName || currentUser?.username}
               </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted, rgba(255,255,255,0.5))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {currentUser?.email || `@${currentUser?.username}`}
+              <span style={{
+                background: '#23a55a',
+                color: '#fff',
+                fontSize: '0.62rem',
+                fontWeight: '900',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}>
+                #
               </span>
             </div>
+            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)' }}>
+              @{currentUser?.username}
+            </span>
           </div>
 
           {/* Upgrade Banner Button */}
-          <div 
-            style={{
-              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #0f766e 100%)',
-              borderRadius: '14px',
-              padding: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              transition: 'transform 0.2s',
-              boxShadow: '0 4px 14px rgba(3,105,161,0.3)',
-            }}
-            onClick={() => {
-              setProfilePopoverOpen(false);
-              setProfileOpen(true); // Open profile edit
-            }}
-            className="upgrade-profile-banner"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
-              <span style={{ fontSize: '1.1rem' }}>👑</span>
-              <span style={{ fontWeight: '700', fontSize: '0.82rem', letterSpacing: '-0.2px' }}>Upgrade profile</span>
-            </div>
-            <span style={{
-              background: '#fff',
-              color: '#0369a1',
-              fontSize: '0.65rem',
-              fontWeight: '800',
-              padding: '2px 8px',
-              borderRadius: '20px',
-              letterSpacing: '0.5px'
-            }}>PRO</span>
-          </div>
-
-          {/* Option Menu List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {/* User Profile */}
-            <div 
-              style={styles.popoverMenuItem}
-              className="popover-menu-item"
-              onClick={() => {
-                setProfilePopoverOpen(false);
-                setProfileOpen(true);
-              }}
-            >
-              <div style={styles.popoverMenuIconWrapper}>
-                <User size={16} color="var(--text-muted)" />
-              </div>
-              <span style={styles.popoverMenuLabel}>User Profile</span>
-            </div>
-
-            {/* Integrations */}
-            <div 
-              style={styles.popoverMenuItem}
-              className="popover-menu-item"
-              onClick={() => {
-                setProfilePopoverOpen(false);
-                setProfileOpen(true);
-              }}
-            >
-              <div style={styles.popoverMenuIconWrapper}>
-                <Link2 size={16} color="var(--text-muted)" />
-              </div>
-              <span style={styles.popoverMenuLabel}>Integrations</span>
-            </div>
-
-            {/* Settings */}
-            <div 
-              style={styles.popoverMenuItem}
-              className="popover-menu-item"
-              onClick={() => {
-                setProfilePopoverOpen(false);
-                setProfileOpen(true); // Will open settings
-              }}
-            >
-              <div style={styles.popoverMenuIconWrapper}>
-                <Settings size={16} color="var(--text-muted)" />
-              </div>
-              <span style={styles.popoverMenuLabel}>Settings</span>
-            </div>
-
-            {/* Community / Friends */}
-            <div 
-              style={styles.popoverMenuItem}
-              className="popover-menu-item"
-              onClick={() => {
-                setProfilePopoverOpen(false);
-                setActiveServerId(null);
-                setActiveChannelId(null);
-                setActiveDMUserId(null);
-              }}
-            >
-              <div style={styles.popoverMenuIconWrapper}>
-                <Users size={16} color="var(--text-muted)" />
-              </div>
-              <span style={styles.popoverMenuLabel}>Community</span>
-            </div>
-
-            {/* Help Center */}
-            <div 
-              style={styles.popoverMenuItem}
-              className="popover-menu-item"
-              onClick={() => {
-                setProfilePopoverOpen(false);
-                showToast("💡 Help Center is coming soon!", "info");
-              }}
-            >
-              <div style={styles.popoverMenuIconWrapper}>
-                <HelpCircle size={16} color="var(--text-muted)" />
-              </div>
-              <span style={styles.popoverMenuLabel}>Help Center</span>
-            </div>
-
-            {/* Dark Mode Option Toggle */}
+          {showAmpBanner && (
             <div 
               style={{
-                ...styles.popoverMenuItem,
-                cursor: 'default',
+                margin: '0 12px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                borderRadius: '12px',
+                padding: '12px',
+                position: 'relative',
               }}
-              className="popover-menu-item-no-hover"
             >
-              <div style={styles.popoverMenuIconWrapper}>
-                {theme === 'dark' || theme === 'amoled' ? <Moon size={16} color="var(--text-muted)" /> : <Sun size={16} color="var(--text-muted)" />}
-              </div>
-              <span style={styles.popoverMenuLabel}>Dark Mode</span>
-              <div 
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowAmpBanner(false); }}
                 style={{
-                  width: '38px',
-                  height: '20px',
-                  borderRadius: '10px',
-                  background: theme === 'dark' || theme === 'amoled' ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.12)',
-                  position: 'relative',
-                  cursor: 'pointer',
-                  marginLeft: 'auto',
-                  transition: 'background 0.2s',
+                  position: 'absolute', top: '8px', right: '8px',
+                  background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
+                  cursor: 'pointer', fontSize: '0.8rem', width: '16px', height: '16px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               >
-                <div style={{
-                  width: '14px',
-                  height: '14px',
-                  borderRadius: '50%',
-                  background: '#fff',
-                  position: 'absolute',
-                  top: '3px',
-                  left: theme === 'dark' || theme === 'amoled' ? '21px' : '3px',
-                  transition: 'left 0.2s cubic-bezier(0.4,0,0.2,1)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                }} />
+                ✕
+              </button>
+              <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>
+                Amp up your profile
               </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => { setProfilePopoverOpen(false); setProfileOpen(true); }}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                    padding: '8px', background: 'linear-gradient(90deg, #7c3aed, #6366f1)',
+                    border: 'none', borderRadius: '6px', color: '#fff', fontSize: '0.74rem', fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  👑 Get Nitro
+                </button>
+                <button 
+                  onClick={() => showToast('🛒 Shop features coming soon!')}
+                  style={{
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                    padding: '8px', background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '0.74rem', fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🏪 Shop
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Game Collection Section */}
+          <div style={{ padding: '0 12px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+              Game Collection
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div title="Neverness to Everness" style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#1e2030', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default' }}>🪐</div>
+              <div title="VALORANT" style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#ff4655', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default' }}>🎯</div>
+              <div title="Wuthering Waves" style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default' }}>🌊</div>
             </div>
           </div>
 
-          <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.05)', margin: '4px 0' }} />
+          <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
 
-          {/* Log Out / User Profile (Red Item) */}
-          <button 
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 12px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'rgba(239, 68, 68, 0.1)',
-              color: '#ef4444',
-              cursor: 'pointer',
-              fontWeight: '700',
-              fontSize: '0.85rem',
-              transition: 'background 0.15s, transform 0.1s',
-            }}
-            onClick={() => {
-              setProfilePopoverOpen(false);
-              logout();
-            }}
-            className="popover-logout-btn"
-          >
-            <LogOut size={16} />
-            <span>Log Out</span>
-          </button>
+          {/* Option Menu List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '0 8px' }}>
+            {/* Edit Profile */}
+            <div 
+              style={styles.popoverMenuItem}
+              className="popover-menu-item"
+              onClick={() => {
+                setProfilePopoverOpen(false);
+                setProfileOpen(true);
+              }}
+            >
+              <div style={styles.popoverMenuIconWrapper}>
+                <Pencil size={16} color="rgba(255,255,255,0.5)" />
+              </div>
+              <span style={styles.popoverMenuLabel}>Edit Profile</span>
+            </div>
+
+            {/* Status Selector option with inline list */}
+            <div style={{ position: 'relative' }}>
+              <div 
+                style={styles.popoverMenuItem}
+                className="popover-menu-item"
+                onClick={() => setShowStatusSelect(!showStatusSelect)}
+              >
+                <div style={styles.popoverMenuIconWrapper}>
+                  <span style={{ fontSize: '1rem' }}>
+                    {currentUser?.status === 'online' ? '🟢' : currentUser?.status === 'idle' ? '🟡' : currentUser?.status === 'dnd' ? '🔴' : '⚪'}
+                  </span>
+                </div>
+                <span style={{ ...styles.popoverMenuLabel, flex: 1, fontSize: '0.85rem', fontWeight: '600', color: '#fff' }}>
+                  {currentUser?.status === 'online' ? 'Online' : currentUser?.status === 'idle' ? 'Idle' : currentUser?.status === 'dnd' ? 'Do Not Disturb' : 'Invisible'}
+                </span>
+                <ChevronDown size={14} color="rgba(255,255,255,0.4)" />
+              </div>
+
+              {showStatusSelect && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: '12px', right: '12px', marginBottom: '8px',
+                  background: '#1e1f22', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', zIndex: 1100,
+                  padding: '4px', display: 'flex', flexDirection: 'column', gap: '2px'
+                }}>
+                  {[
+                    { id: 'online', label: '🟢 Online' },
+                    { id: 'idle', label: '🟡 Idle' },
+                    { id: 'dnd', label: '🔴 Do Not Disturb' },
+                    { id: 'offline', label: '⚪ Invisible' }
+                  ].map(s => (
+                    <div 
+                      key={s.id}
+                      onClick={async () => {
+                        try {
+                          await updateProfile({ status: s.id });
+                        } catch (_) {}
+                        setShowStatusSelect(false);
+                      }}
+                      style={{
+                        padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
+                        fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)',
+                        display: 'flex', alignItems: 'center', transition: 'background 0.1s'
+                      }}
+                      className="status-select-item"
+                      onMouseEnter={e => e.target.style.background = 'rgba(255,255,255,0.05)'}
+                      onMouseLeave={e => e.target.style.background = 'transparent'}
+                    >
+                      {s.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Switch Accounts (Log out action) */}
+            <div 
+              style={styles.popoverMenuItem}
+              className="popover-menu-item"
+              onClick={() => {
+                setProfilePopoverOpen(false);
+                logout();
+              }}
+            >
+              <div style={styles.popoverMenuIconWrapper}>
+                <LogOut size={16} color="#f87171" />
+              </div>
+              <span style={{ ...styles.popoverMenuLabel, color: '#f87171' }}>Switch Accounts</span>
+            </div>
+          </div>
         </div>
       )}
 

@@ -129,6 +129,10 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [username, setUsername]               = useState(currentUser?.username || '');
   const [favoriteGame, setFavoriteGame]       = useState(currentUser?.favoriteGame || '');
   const [gamesInRotation, setGamesInRotation] = useState(currentUser?.gamesInRotation || '');
+  const [avatarDecoration, setAvatarDecoration] = useState(currentUser?.avatarDecoration || '');
+  const [profileEffect, setProfileEffect]       = useState(currentUser?.profileEffect || '');
+  const [revealEmail, setRevealEmail]         = useState(false);
+  const [revealPhone, setRevealPhone]         = useState(false);
   const [inputVolume, setInputVolume]         = useState(80);
   const [outputVolume, setOutputVolume]       = useState(80);
   const [noiseSuppression, setNoiseSuppression] = useState(true);
@@ -263,7 +267,10 @@ export default function ProfileModal({ isOpen, onClose }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateProfile({ displayName, avatarUrl, bannerColor, bio, customStatus, status, pronouns, favoriteGame, gamesInRotation, autoDeleteDuration });
+      await updateProfile({ 
+        displayName, avatarUrl, bannerColor, bio, customStatus, status, pronouns, 
+        favoriteGame, gamesInRotation, avatarDecoration, profileEffect, autoDeleteDuration 
+      });
       showToast('✓ Changes saved successfully');
     } catch (e) { showToast('✗ Save failed: ' + (e.message || 'Unknown error')); }
     finally { setSaving(false); }
@@ -334,7 +341,7 @@ export default function ProfileModal({ isOpen, onClose }) {
   };
   const area = { ...inp, resize: 'none', lineHeight: '1.5' };
 
-  /* ── Section heading helpers ──────────────────────── */
+  /* ── Section heading helpers ─────── */
   const SectionTitle = ({ children }) => (
     <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: G.text, marginBottom: '5px', lineHeight: 1.2, letterSpacing: '-0.3px' }}>{children}</h2>
   );
@@ -348,125 +355,357 @@ export default function ProfileModal({ isOpen, onClose }) {
     <div style={{ background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '14px', padding: '4px 18px', ...style }}>{children}</div>
   );
 
-  /* ═══════ Tab Content Renderers ═══════ */
-
   const renderAccount = () => (
-    <div>
+    <div style={{ width: '100%' }}>
       {activeSubSection === 'my-account' && (
         <>
-          <SectionTitle>My Account</SectionTitle>
-          <SectionDesc>Manage your identity, security credentials, and account standing.</SectionDesc>
+          <SectionTitle>Account</SectionTitle>
+          <SectionDesc>Manage your account settings and credentials.</SectionDesc>
 
-          {/* Banner + avatar card */}
-          <div style={{ borderRadius: '16px', overflow: 'hidden', border: `1px solid ${G.border2}`, marginBottom: '24px' }}>
-            <div style={{ height: '88px', background: `linear-gradient(135deg, ${bannerColor}cc, ${bannerColor}55)`, position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: 0, backdropFilter: 'blur(2px)' }} />
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0 20px 20px', borderTop: `1px solid ${G.border}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '-36px', marginBottom: '14px' }}>
-                <img
-                  src={avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`}
-                  alt="avatar"
-                  style={{ width: '70px', height: '70px', borderRadius: '50%', border: '3px solid rgba(139,92,246,0.6)', background: '#1a1a2e', objectFit: 'cover', boxShadow: '0 4px 20px rgba(139,92,246,0.3)' }}
-                />
-                <button onClick={() => setActiveSubSection('profiles')} style={{
-                  padding: '7px 16px', borderRadius: '8px', border: `1px solid ${G.border2}`,
-                  background: G.bg3, color: G.text, cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600',
-                  transition: 'all 0.15s',
-                }}>
-                  ✏️ Edit Profile
+          {/* Account Info Card (Image 5) */}
+          <div style={{
+            background: '#2b2d31',
+            borderRadius: '8px',
+            padding: '16px',
+            border: '1px solid rgba(255,255,255,0.05)',
+            marginBottom: '24px',
+          }}>
+            <h3 style={{ fontSize: '0.82rem', color: '#fff', fontWeight: '800', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.5px' }}>Account Info</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Username row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: G.textSub, fontWeight: '700', textTransform: 'uppercase' }}>Username</div>
+                  <div style={{ fontSize: '0.9rem', color: '#fff', marginTop: '4px' }}>{username}</div>
+                </div>
+                <button onClick={() => {
+                  const val = prompt("Edit Username:", username);
+                  if (val) setUsername(val);
+                }} style={{ background: '#4e5058', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 16px', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer' }}>
+                  Edit
                 </button>
               </div>
-              <div style={{ fontWeight: '700', fontSize: '1rem', color: G.text }}>{displayName || username}</div>
-              <div style={{ fontSize: '0.82rem', color: G.textMut }}>@{username}</div>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+
+              {/* Email row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: G.textSub, fontWeight: '700', textTransform: 'uppercase' }}>Email</div>
+                  <div style={{ fontSize: '0.9rem', color: '#fff', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {revealEmail ? email : email.replace(/^([^@]{3})[^@]+/, '$1********')}
+                    <span onClick={() => setRevealEmail(!revealEmail)} style={{ color: G.cyan, fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                      {revealEmail ? 'Hide' : 'Reveal'}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => {
+                  const val = prompt("Edit Email:", email);
+                  if (val) setEmail(val);
+                }} style={{ background: '#4e5058', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 16px', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer' }}>
+                  Edit
+                </button>
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+
+              {/* Phone row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: G.textSub, fontWeight: '700', textTransform: 'uppercase' }}>Phone Number</div>
+                  <div style={{ fontSize: '0.9rem', color: '#fff', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {revealPhone ? "+1 555-555-2077" : "*********2077"}
+                    <span onClick={() => setRevealPhone(!revealPhone)} style={{ color: G.cyan, fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                      {revealPhone ? 'Hide' : 'Reveal'}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => showToast('✏️ Phone number modification is disabled for this test account.')} style={{ background: '#4e5058', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 16px', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer' }}>
+                  Edit
+                </button>
+              </div>
             </div>
           </div>
 
-          <GlassCard>
-            <FieldRow label="Display Name">
-              <input style={inp} value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your display name" />
-            </FieldRow>
-            <FieldRow label="Username">
-              <input style={{ ...inp, opacity: 0.55, cursor: 'not-allowed' }} value={`@${username}`} readOnly />
-            </FieldRow>
-            <FieldRow label="Email">
-              <input style={inp} value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" type="email" />
-            </FieldRow>
-            <FieldRow label="Custom Status">
-              <input style={inp} value={customStatus} onChange={e => setCustomStatus(e.target.value)} placeholder="What are you up to?" />
-            </FieldRow>
-            <FieldRow label="Online Status">
-              <select style={sel} value={status} onChange={e => setStatus(e.target.value)}>
-                <option value="online">🟢 Online</option>
-                <option value="idle">🟡 Idle</option>
-                <option value="dnd">🔴 Do Not Disturb</option>
-                <option value="offline">⚪ Invisible</option>
-              </select>
-            </FieldRow>
-          </GlassCard>
+          {/* Password & Security Card (Image 5) */}
+          <div style={{
+            background: '#2b2d31',
+            borderRadius: '8px',
+            padding: '16px',
+            border: '1px solid rgba(255,255,255,0.05)',
+            marginBottom: '24px',
+          }}>
+            <h3 style={{ fontSize: '0.82rem', color: '#fff', fontWeight: '800', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.5px' }}>Password & Security</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Password row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: G.textSub, fontWeight: '700', textTransform: 'uppercase' }}>Password</div>
+                  <div style={{ fontSize: '0.9rem', color: '#fff', marginTop: '4px' }}>••••••••••••</div>
+                </div>
+                <button onClick={() => showToast('🔑 Password change request sent.')} style={{ background: '#4e5058', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 16px', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer' }}>
+                  Edit
+                </button>
+              </div>
 
-          {/* Account standing */}
-          <div style={{ marginTop: '20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '14px 18px', display: 'flex', gap: '14px', alignItems: 'center' }}>
-            <Shield size={20} color="#22c55e" strokeWidth={1.5} />
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '0.88rem', color: '#4ade80' }}>Safe & Verified Account</div>
-              <div style={{ fontSize: '0.74rem', color: 'rgba(74,222,128,0.65)', marginTop: '2px' }}>No active violations or reports on your profile.</div>
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }} />
+
+              {/* MFA row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: '700' }}>Multi-Factor Authentication</div>
+                  <div style={{ fontSize: '0.74rem', color: G.textSub, marginTop: '2px' }}>Protect your account with an extra layer of security.</div>
+                </div>
+                <button onClick={() => showToast('🔐 Opening MFA configuration...')} style={{ background: '#5865f2', color: '#fff', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Set up ➔
+                </button>
+              </div>
             </div>
           </div>
-
+          
           <button onClick={handleSave} disabled={saving} style={{
-            marginTop: '20px', width: '100%', padding: '12px', borderRadius: '12px',
+            width: '100%', padding: '12px', borderRadius: '8px',
             background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            border: 'none', color: '#fff', fontSize: '0.92rem', fontWeight: '700',
+            border: 'none', color: '#fff', fontSize: '0.9rem', fontWeight: '700',
             cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
             boxShadow: '0 4px 20px rgba(139,92,246,0.35)', transition: 'all 0.2s',
           }}>
-            {saving ? '⏳ Saving…' : '💾 Save Changes'}
+            {saving ? '⏳ Saving…' : '💾 Save Account Details'}
           </button>
         </>
       )}
 
       {activeSubSection === 'profiles' && (
-        <>
-          <SectionTitle>Profiles</SectionTitle>
-          <SectionDesc>Customize how your profile appears to other users on Kiko.</SectionDesc>
-          <GlassCard>
-            <FieldRow label="Avatar URL" hint="Paste a direct image URL or randomize.">
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input style={{ ...inp, flex: 1 }} value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://…" />
-                <button onClick={() => setAvatarUrl(`https://api.dicebear.com/7.x/bottts/svg?seed=${Math.random().toString(36).slice(2)}`)}
-                  style={{ padding: '9px 14px', borderRadius: '10px', border: `1px solid ${G.border2}`, background: G.bg3, color: G.text, cursor: 'pointer', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                  🎲 Random
+        <div style={{ display: 'flex', gap: '20px', width: '100%', minHeight: '520px' }}>
+          {/* COLUMN 1: CONTROLS (width: 280px) */}
+          <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Dropdown */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Main Profile</div>
+              <select style={sel}>
+                <option>User Profile</option>
+                <option>Server Profile</option>
+              </select>
+            </div>
+
+            {/* Nameplate section */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Nameplate</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input style={{ ...inp, flex: 1 }} placeholder="Default style..." value={avatarDecoration ? "Standard decoration" : ""} readOnly />
+                <button onClick={() => setAvatarDecoration(avatarDecoration ? '' : 'halo')} style={{ padding: '9px 12px', background: G.bg3, border: `1px solid ${G.border2}`, color: '#fff', borderRadius: '10px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                  {avatarDecoration ? 'Clear' : '+'}
                 </button>
               </div>
-            </FieldRow>
-            <FieldRow label="Banner Color">
+            </div>
+
+            {/* Avatar & Decoration */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Avatar & Decoration</div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+                <div 
+                  onClick={() => setAvatarDecoration('halo')} 
+                  style={{ width: '42px', height: '42px', borderRadius: '50%', border: avatarDecoration === 'halo' ? `2px solid ${G.accent}` : `1px solid ${G.border}`, background: G.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.2rem' }}
+                  title="Halo decoration"
+                >
+                  😇
+                </div>
+                <div 
+                  onClick={() => setAvatarDecoration('crown')} 
+                  style={{ width: '42px', height: '42px', borderRadius: '50%', border: avatarDecoration === 'crown' ? `2px solid ${G.accent}` : `1px solid ${G.border}`, background: G.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.2rem' }}
+                  title="Crown decoration"
+                >
+                  👑
+                </div>
+                <div 
+                  onClick={() => setAvatarDecoration('sparkles-decor')} 
+                  style={{ width: '42px', height: '42px', borderRadius: '50%', border: avatarDecoration === 'sparkles-decor' ? `2px solid ${G.accent}` : `1px solid ${G.border}`, background: G.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.2rem' }}
+                  title="Sparkles decoration"
+                >
+                  ✨
+                </div>
+                <div 
+                  onClick={() => setAvatarDecoration('')} 
+                  style={{ width: '42px', height: '42px', borderRadius: '50%', border: avatarDecoration === '' ? `2px solid ${G.accent}` : `1px solid ${G.border}`, background: G.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '0.75rem', color: G.textMut }}
+                  title="No decoration"
+                >
+                  None
+                </div>
+              </div>
+              <button onClick={() => {
+                const url = prompt("Enter Avatar Image URL:", avatarUrl);
+                if (url !== null) setAvatarUrl(url);
+              }} style={{ width: '100%', padding: '10px', background: G.bg3, border: `1px solid ${G.border2}`, color: G.text, borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontSize: '0.82rem' }}>
+                📸 Upload Avatar
+              </button>
+            </div>
+
+            {/* Banner Color */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Banner Color</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input type="color" value={bannerColor} onChange={e => setBannerColor(e.target.value)} style={{ width: '40px', height: '40px', borderRadius: '10px', border: `1px solid ${G.border2}`, cursor: 'pointer', padding: '2px', background: 'transparent' }} />
                 <input style={{ ...inp, flex: 1 }} value={bannerColor} onChange={e => setBannerColor(e.target.value)} />
               </div>
-            </FieldRow>
-            <FieldRow label="Pronouns">
+            </div>
+
+            {/* Profile Effect */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Profile Effect</div>
+              <select style={sel} value={profileEffect} onChange={e => setProfileEffect(e.target.value)}>
+                <option value="">No particle effects</option>
+                <option value="sakura">🌸 Sakura Blossoms</option>
+                <option value="sparkles">✨ Sparkles</option>
+                <option value="neon">⚡ Neon Drops</option>
+              </select>
+            </div>
+
+            {/* Pronouns input */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Pronouns</div>
               <input style={inp} value={pronouns} onChange={e => setPronouns(e.target.value)} placeholder="e.g. they/them" />
-            </FieldRow>
-            <FieldRow label="Bio" hint="Brief intro shown on your profile card.">
-              <textarea style={area} rows={3} value={bio} onChange={e => setBio(e.target.value)} placeholder="Write a short bio…" />
-            </FieldRow>
-            <FieldRow label="Favorite Game">
-              <input style={inp} value={favoriteGame} onChange={e => setFavoriteGame(e.target.value)} placeholder="e.g. VALORANT" />
-            </FieldRow>
-            <FieldRow label="Games in Rotation" hint="Comma-separated list of games you actively play.">
-              <input style={inp} value={gamesInRotation} onChange={e => setGamesInRotation(e.target.value)} placeholder="VALORANT, Wuthering Waves, …" />
-            </FieldRow>
-          </GlassCard>
-          <button onClick={handleSave} disabled={saving} style={{ marginTop: '20px', width: '100%', padding: '12px', borderRadius: '12px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none', color: '#fff', fontSize: '0.92rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, boxShadow: '0 4px 20px rgba(139,92,246,0.35)' }}>
-            {saving ? '⏳ Saving…' : '💾 Save Changes'}
-          </button>
-        </>
+            </div>
+
+            {/* Nitro Badge */}
+            <div style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)', borderRadius: '12px', padding: '12px', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ fontWeight: '700', fontSize: '0.8rem', marginBottom: '4px' }}>Level up your look, only with Nitro</div>
+              <button onClick={() => showToast('✓ Trial activated!')} style={{ background: '#fff', color: '#7c3aed', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}>Get Nitro</button>
+            </div>
+
+          </div>
+
+          {/* COLUMN 2: LIVE CARD PREVIEW (width: 280px) */}
+          <div style={{ width: '280px', flexShrink: 0 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase', marginBottom: '8px' }}>Live Card Preview</div>
+            {/* Discord User Card Component */}
+            <div style={{
+              borderRadius: '16px', overflow: 'hidden', border: `1px solid ${G.border2}`, background: '#111214',
+              boxShadow: '0 16px 36px rgba(0,0,0,0.5)', height: '480px', display: 'flex', flexDirection: 'column',
+              position: 'relative'
+            }}>
+              {/* Banner Color */}
+              <div style={{ height: '70px', background: bannerColor, position: 'relative' }} />
+
+              {/* Avatar and status moon */}
+              <div style={{ padding: '0 16px', marginTop: '-42px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                <div style={{ position: 'relative' }}>
+                  <img src={avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`} alt="avatar" style={{ width: '74px', height: '74px', borderRadius: '50%', border: '6px solid #111214', background: '#1a1a2e', objectFit: 'cover' }} />
+                  <span className={`status-dot ${status}`} style={{ position: 'absolute', bottom: '2px', right: '2px', width: '18px', height: '18px', borderRadius: '50%', border: '3px solid #111214' }} />
+                  {avatarDecoration && (
+                    <span style={{ position: 'absolute', top: '-10px', left: '-10px', fontSize: '1.8rem', pointerEvents: 'none' }}>
+                      {avatarDecoration === 'halo' ? '😇' : avatarDecoration === 'crown' ? '👑' : '✨'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Custom status pill */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.68rem', color: '#fff', fontWeight: '500', maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span>💭</span>
+                  <span>{customStatus || '+ Status'}</span>
+                </div>
+              </div>
+
+              {/* User Nameplate details */}
+              <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontWeight: '700', fontSize: '1rem', color: '#fff' }}>{displayName || username}</span>
+                  <span style={{ background: G.green, color: '#fff', fontSize: '0.58rem', fontWeight: '900', padding: '1px 3px', borderRadius: '3px' }}>#</span>
+                </div>
+                <span style={{ fontSize: '0.78rem', color: G.textSub }}>@{username}</span>
+                {pronouns && <span style={{ fontSize: '0.72rem', color: G.cyan, marginTop: '2px', fontWeight: '600' }}>{pronouns}</span>}
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '0 16px 8px 16px' }} />
+
+              {/* Bio / haiku */}
+              <div style={{ padding: '0 16px', flex: 1, overflowY: 'auto' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: '800', color: G.textMut, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Describe yourself in a haiku</div>
+                <p style={{ fontSize: '0.78rem', color: G.textSub, margin: '0 0 12px 0', fontStyle: 'italic', lineHeight: '1.4' }}>
+                  {bio || 'Write a short description in your profile edits!'}
+                </p>
+
+                <div style={{ fontSize: '0.68rem', fontWeight: '800', color: G.textMut, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Member Since</div>
+                <div style={{ fontSize: '0.76rem', color: G.textSub }}>Oct 26, 2022</div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 3: WIDGETS DASHBOARD */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Tabs */}
+            <div style={{ display: 'flex', borderBottom: `1px solid ${G.border}`, paddingBottom: '6px', gap: '16px' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: G.accent, borderBottom: `2px solid ${G.accent}`, paddingBottom: '4px', cursor: 'pointer' }}>Board</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '500', color: G.textSub, cursor: 'pointer' }}>Activity</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '500', color: G.textSub, cursor: 'pointer' }}>Wishlist</span>
+            </div>
+
+            {/* Your Widgets section */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: G.textSub, textTransform: 'uppercase' }}>Your Widgets</span>
+              <button onClick={() => showToast('➕ Adding Widget...')} style={{ fontSize: '0.72rem', color: G.text, background: G.bg3, border: `1px solid ${G.border2}`, borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', fontWeight: '600' }}>
+                + Add Widget
+              </button>
+            </div>
+
+            {/* Widget 1: Favorite game */}
+            <div style={{ background: '#1e1f22', border: `1px solid ${G.border}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.74rem', color: G.textMut, fontWeight: '700', textTransform: 'uppercase' }}>Favorite game</span>
+                <span style={{ fontSize: '0.68rem', color: G.cyan }}>Choose 1 game</span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ width: '56px', height: '76px', borderRadius: '6px', background: G.bg2, backgroundImage: 'url("https://images.unsplash.com/photo-1542751371-adc38448a05e?w=100&auto=format&fit=crop&q=60")', backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#fff' }}>{favoriteGame || "NTE: Neverness to Everness"}</div>
+                  <p style={{ fontSize: '0.68rem', color: G.textMut, margin: '4px 0 0 0', lineHeight: '1.3' }}>Let everyone know why this is your favorite game!</p>
+                  <input 
+                    style={{ ...inp, padding: '4px 8px', fontSize: '0.72rem', marginTop: '6px', height: '24px' }} 
+                    value={favoriteGame} 
+                    onChange={e => setFavoriteGame(e.target.value)} 
+                    placeholder="Update favorite game..." 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Widget 2: Games in rotation */}
+            <div style={{ background: '#1e1f22', border: `1px solid ${G.border}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.74rem', color: G.textMut, fontWeight: '700', textTransform: 'uppercase' }}>Games in rotation</span>
+                <span style={{ fontSize: '0.68rem', color: G.textSub }}>Add up to 5 games</span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ width: '48px', height: '64px', borderRadius: '6px', background: '#ff4655', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '800', fontSize: '0.6rem', textAlign: 'center', padding: '4px' }}>VALORANT</div>
+                <div style={{ width: '48px', height: '64px', borderRadius: '6px', background: G.bg2, border: `1px dashed ${G.border2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.2rem', color: G.textMut }}>+</div>
+                <div style={{ flex: 1 }}>
+                  <input 
+                    style={{ ...inp, padding: '4px 8px', fontSize: '0.72rem', height: '24px' }} 
+                    value={gamesInRotation} 
+                    onChange={e => setGamesInRotation(e.target.value)} 
+                    placeholder="Games list (comma separated)" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Save and Actions */}
+            <button onClick={handleSave} disabled={saving} style={{
+              marginTop: 'auto', width: '100%', padding: '10px', borderRadius: '10px',
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none', color: '#fff',
+              fontSize: '0.85rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
+              boxShadow: '0 4px 16px rgba(139,92,246,0.3)', transition: 'all 0.15s'
+            }}>
+              {saving ? '⏳ Saving…' : '💾 Save Profile Customizations'}
+            </button>
+
+          </div>
+        </div>
       )}
     </div>
   );
-
   const renderConnections = () => (
     <div>
       <SectionTitle>Connections</SectionTitle>
@@ -900,7 +1139,7 @@ export default function ProfileModal({ isOpen, onClose }) {
         <div
           onClick={e => e.stopPropagation()}
           style={{
-            width: '1060px', maxWidth: '100%', height: '700px', maxHeight: '95vh',
+            width: activeSubSection === 'profiles' ? '1240px' : '1060px', maxWidth: '100%', height: '700px', maxHeight: '95vh',
             display: 'flex', borderRadius: '20px', overflow: 'hidden',
             background: G.bg0,
             border: `1px solid ${G.border2}`,

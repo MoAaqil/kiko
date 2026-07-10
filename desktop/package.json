@@ -8,9 +8,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
-    "build:all": "electron-builder --win --mac",
+    "build:win": "node archive-old-builds.js && electron-builder --win",
+    "build:mac": "node archive-old-builds.js && electron-builder --mac",
+    "build:all": "node archive-old-builds.js && electron-builder --win --mac",
     "build:dir": "electron-builder --dir"
   },
   "devDependencies": {
@@ -68,6 +68,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico",
       "installerHeaderIcon": "assets/icon.ico",

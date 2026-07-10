@@ -22,6 +22,7 @@ model User {
   lastSeen              DateTime       @default(now())
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
+  pronouns              String         @default("")
 
   // NEW custom fields for Discord-like profile customizer
   bannerColor           String         @default("#2c2f33")

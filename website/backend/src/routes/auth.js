@@ -62,6 +62,7 @@ function formatUserResponse(user) {
     bio: user.bio,
     status: user.status,
     customStatus: user.customStatus,
+    pronouns: user.pronouns || "",
     bannerColor: user.bannerColor,
     avatarDecoration: user.avatarDecoration,
     profileEffect: user.profileEffect,
@@ -469,7 +470,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
     const { 
-      displayName, avatarUrl, bannerUrl, bio, status, customStatus,
+      displayName, avatarUrl, bannerUrl, bio, status, customStatus, pronouns,
       bannerColor, avatarDecoration, profileEffect, favoriteGame, gamesInRotation,
       autoDeleteDuration, theme, bgWallpaper, messageDensity, reducedMotion,
       devMode, fontScale
@@ -482,6 +483,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
     if (bio !== undefined) dataToUpdate.bio = bio;
     if (status !== undefined) dataToUpdate.status = status;
     if (customStatus !== undefined) dataToUpdate.customStatus = customStatus;
+    if (pronouns !== undefined) dataToUpdate.pronouns = pronouns;
     if (bannerColor !== undefined) dataToUpdate.bannerColor = bannerColor;
     if (avatarDecoration !== undefined) dataToUpdate.avatarDecoration = avatarDecoration;
     if (profileEffect !== undefined) dataToUpdate.profileEffect = profileEffect;
