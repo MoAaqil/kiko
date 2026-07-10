@@ -963,6 +963,40 @@ export default function ProfileModal({ isOpen, onClose }) {
           <button onClick={() => showToast('🎁 Gift Aeos: select a friend…')} style={{ width: '100%', padding: '11px', borderRadius: '10px', background: G.bg3, border: `1px solid ${G.border2}`, color: G.text, fontWeight: '700', fontSize: '0.88rem', cursor: 'pointer' }}>🎁 Gift Aeos</button>
         </div>
       </div>
+
+      <GroupLabel>Aeos Stickers Shop</GroupLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        {[
+          { id: 'cat_wink', name: 'Cat Wink', url: 'https://i.pinimg.com/736x/19/46/76/1946762a5847ee6fa4c97a11b69af242.jpg', type: 'FREE' },
+          { id: 'cat_happy', name: 'Cat Happy', url: 'https://i.pinimg.com/736x/76/a0/7c/76a07c962bb96a1790724881305d0194.jpg', type: 'FREE' },
+          { id: 'cat_love', name: 'Cat Love', url: 'https://i.pinimg.com/736x/d8/36/af/d836af1443b4572d778b39b73dc40b77.jpg', type: 'Aeos Exclusive' },
+          { id: 'cat_surprised', name: 'Cat Surprised', url: 'https://i.pinimg.com/736x/98/5e/80/985e80d0ceda54b014e5891a4c9c7500.jpg', type: 'FREE' },
+          { id: 'cat_sleeping', name: 'Cat Sleeping', url: 'https://i.pinimg.com/736x/0b/30/18/0b301887831b5ca9d75f4e89a7867b79.jpg', type: 'Aeos Exclusive' },
+          { id: 'cat_crying', name: 'Cat Crying', url: 'https://i.pinimg.com/736x/77/fa/cc/77facc4484241327c75bcdb2a2f5c5ef.jpg', type: 'Aeos Exclusive' }
+        ].map(s => (
+          <div key={s.id} style={{ background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <img src={s.url} alt={s.name} style={{ width: '56px', height: '56px', borderRadius: '8px', objectFit: 'contain', background: 'rgba(255,255,255,0.03)' }} />
+            <div style={{ fontWeight: '700', fontSize: '0.74rem', color: G.text, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>{s.name}</div>
+            <button 
+              onClick={() => showToast(`✓ ${s.name} sticker unlocked & added to chat picker!`)} 
+              style={{ 
+                width: '100%', 
+                padding: '6px', 
+                borderRadius: '6px', 
+                background: s.type === 'FREE' ? '#248046' : 'linear-gradient(90deg, #7c3aed, #4f46e5)', 
+                border: 'none', 
+                color: '#fff', 
+                fontWeight: '700', 
+                fontSize: '0.68rem', 
+                cursor: 'pointer' 
+              }}
+            >
+              {s.type === 'FREE' ? 'Claim' : 'Unlock'}
+            </button>
+          </div>
+        ))}
+      </div>
+
       <GroupLabel>Premium Perks</GroupLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
         {[

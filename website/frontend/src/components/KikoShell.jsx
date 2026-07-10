@@ -10,6 +10,15 @@ import WebRTCCall from './WebRTCCall.jsx';
 import ProfileModal from './ProfileModal.jsx';
 import { KikoLogo } from './AuthPage.jsx';
 
+const STICKERS = [
+  { id: 'cat_wink', name: 'Cat Wink', url: 'https://i.pinimg.com/736x/19/46/76/1946762a5847ee6fa4c97a11b69af242.jpg' },
+  { id: 'cat_happy', name: 'Cat Happy', url: 'https://i.pinimg.com/736x/76/a0/7c/76a07c962bb96a1790724881305d0194.jpg' },
+  { id: 'cat_love', name: 'Cat Love', url: 'https://i.pinimg.com/736x/d8/36/af/d836af1443b4572d778b39b73dc40b77.jpg' },
+  { id: 'cat_surprised', name: 'Cat Surprised', url: 'https://i.pinimg.com/736x/98/5e/80/985e80d0ceda54b014e5891a4c9c7500.jpg' },
+  { id: 'cat_sleeping', name: 'Cat Sleeping', url: 'https://i.pinimg.com/736x/0b/30/18/0b301887831b5ca9d75f4e89a7867b79.jpg' },
+  { id: 'cat_crying', name: 'Cat Crying', url: 'https://i.pinimg.com/736x/77/fa/cc/77facc4484241327c75bcdb2a2f5c5ef.jpg' }
+];
+
 // Simple Markdown + Code block parser
 function parseMarkdown(text) {
   if (!text) return '';
@@ -614,6 +623,138 @@ function ConnectFourWidget({ startMsgId, chatHistory, onMove, currentUserId }) {
   );
 }
 
+function GomokuWidget({ startMsgId, chatHistory, onMove, currentUserId }) {
+  const board = Array.from({ length: 6 }, () => Array(6).fill(null));
+  let blackTurn = true;
+  const moves = chatHistory.filter(
+    m => m.content?.startsWith(`[GAME_MOVE] ${startMsgId},`)
+  );
+  moves.forEach(m => {
+    const parts = m.content.replace(`[GAME_MOVE] ${startMsgId},`, '').split(',');
+    const r = parseInt(parts[0]); const c = parseInt(parts[1]);
+    if (!isNaN(r) && !isNaN(c) && r >= 0 && r < 6 && c >= 0 && c < 6 && !board[r][c]) {
+      board[r][c] = blackTurn ? '⚫' : '⚪';
+      blackTurn = !blackTurn;
+    }
+  });
+
+  const startMsg = chatHistory.find(m => m.id === startMsgId);
+  const playerBlack = startMsg ? startMsg.userId : null;
+
+  let playerWhite = null;
+  for (const m of moves) {
+    if (m.userId !== playerBlack) {
+      playerWhite = m.userId;
+      break;
+    }
+  }
+
+  const isMyTurn = blackTurn
+    ? (currentUserId === playerBlack)
+    : (playerWhite ? currentUserId === playerWhite : currentUserId !== playerBlack);
+
+  const checkWin = () => {
+    const directions = [
+      [0, 1],   // horizontal
+      [1, 0],   // vertical
+      [1, 1],   // diagonal down-right
+      [1, -1]   // diagonal down-left
+    ];
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
+        if (!board[r][c]) continue;
+        const color = board[r][c];
+        for (const [dr, dc] of directions) {
+          let count = 1;
+          for (let step = 1; step < 4; step++) {
+            const nr = r + dr * step;
+            const nc = c + dc * step;
+            if (nr >= 0 && nr < 6 && nc >= 0 && nc < 6 && board[nr][nc] === color) {
+              count++;
+            } else {
+              break;
+            }
+          }
+          if (count >= 4) return color;
+        }
+      }
+    }
+    return null;
+  };
+
+  const winner = checkWin();
+  const isFull = board.every(row => row.every(cell => cell !== null));
+
+  let statusMsg = '';
+  if (winner) {
+    const winnerId = winner === '⚫' ? playerBlack : playerWhite;
+    if (winnerId === currentUserId) {
+      statusMsg = '🎉 You won!';
+    } else {
+      const winnerName = winner === '⚫' ? (startMsg?.user?.displayName || 'Player Black') : 'Opponent';
+      statusMsg = `🎉 ${winnerName} won!`;
+    }
+  } else if (isFull) {
+    statusMsg = '🤝 Draw!';
+  } else {
+    statusMsg = isMyTurn ? '👉 Your turn!' : '⏳ Opponent\'s turn...';
+  }
+
+  return (
+    <div style={{
+      padding: '14px', background: 'rgba(20,20,35,0.4)',
+      border: '1px solid rgba(0,210,255,0.3)', borderRadius: '14px',
+      width: '260px', display: 'flex', flexDirection: 'column', gap: '10px',
+      backdropFilter: 'blur(12px)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontWeight: '700', fontSize: '0.82rem', color: '#10b981' }}>🎮 Gomoku (4-in-a-row)</span>
+        <span style={{ fontSize: '0.74rem', fontWeight: '600', color: winner ? '#ffd700' : isMyTurn ? '#34d399' : 'rgba(255,255,255,0.4)' }}>{statusMsg}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+        {board.map((row, r) => row.map((cell, c) => (
+          <button
+            key={`${r}-${c}`}
+            disabled={!!cell || !!winner || isFull || !isMyTurn}
+            onClick={() => { playSFX('click'); onMove(r, c, 'Gomoku'); }}
+            style={{
+              height: '32px',
+              padding: 0,
+              background: cell ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '6px',
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: (cell || winner || !isMyTurn) ? 'default' : 'pointer',
+              opacity: (!cell && !isMyTurn) ? 0.5 : 1,
+            }}
+          >
+            {cell}
+          </button>
+        )))}
+      </div>
+      {(winner || isFull) && (
+        <button
+          onClick={() => { playSFX('click'); onMove('reset', 'reset', 'Gomoku'); }}
+          style={{
+            padding: '7px', background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(99,102,241,0.2))',
+            border: '1px solid rgba(16,185,129,0.4)', borderRadius: '8px',
+            color: '#10b981', fontSize: '0.78rem', cursor: 'pointer', fontWeight: '700',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => e.target.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.3), rgba(99,102,241,0.3))'}
+          onMouseLeave={e => e.target.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(99,102,241,0.2))'}
+        >
+          🔄 New Game
+        </button>
+      )}
+    </div>
+  );
+}
+
 function RockPaperScissorsWidget({ startMsgId, chatHistory, onMove, currentUserId }) {
   const moves = chatHistory.filter(
     m => m.content?.startsWith(`[GAME_MOVE] ${startMsgId},`)
@@ -1048,6 +1189,62 @@ export default function KikoShell() {
 
   // Emoji picker & Markdown toolbar
   const [emojiDrawerOpen, setEmojiDrawerOpen] = useState(false);
+  const [emojiSearch, setEmojiSearch] = useState('');
+  const [pickerTab, setPickerTab] = useState('emoji');
+  const [gifSearchQuery, setGifSearchQuery] = useState('');
+  const [gifs, setGifs] = useState([]);
+  const [loadingGifs, setLoadingGifs] = useState(false);
+
+  const fetchGifs = async (query = '') => {
+    setLoadingGifs(true);
+    try {
+      const limit = 12;
+      const apiKey = 'dc6zaTOxFJmzC';
+      const url = query 
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data && json.data.length > 0) {
+          const urls = json.data.map(item => item.images.fixed_height.url);
+          setGifs(urls);
+          setLoadingGifs(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch from Giphy api, using fallbacks:", err);
+    }
+    const fallbacks = [
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3hmdWpsbGdvdnVnb241b3I5d2c2M3psODZtYjh0ZmhqMDV6ZHdtNyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/13CoXDiaCcC2EA/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3g2bzd2MXR5N2Fqd2IxeTFmaDh6ZDNzY3JpcWhvMWZlZXBkbzV0NCZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/JIX9t2j0ZTN9S/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNDB1YmJic2puaWN3a25yMDVzazFvcmw2OWo2MHY3YWZ4aWdxbnRxNSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/CjmvTCZf2U3p09Cn0h/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExODFkcGl5dHplM2FhNXl6N2wzaGdxdHJmdzYyNXlxaXhhbmN1OWt1NSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/cuw655NspW9i0/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnJ2NGYwcW93OHhqa2g0NGphdnMzdnltZm1wOHF3MGdxM3VnOTNzYSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/mlvseq9yvZhba/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZ3Nnb3Vyd3Nrb21ocTV4NXBoc3Y0cHNxbXRzdWl2MXV0MnM5ZzRhNSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/yFQ0ywscgobJK/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnlna3J2Y3Z0bnFqMmdzZmhyYThpNGJ1c24xb2kxbXk1dWdtZHpqbyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/Kz8t94d6x2rKw/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMXE2Zzd6OXlrdjBhbTFpdmRsbzdxNm4wbjdyZjZ0aThubGF6ZmkyOSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/5Govl69wKLnhTGUrYC/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOTVnczNteHRndTV3eHBqbzRxM3d1aWZ6dDRsOWU0aTJtdDR1MmZqMSZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/xT0xezQGU5xCDJu3iE/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGtyM3Z5cjY5dDdrNHUxdjZhd2FxbDVxcnpxeHdmaDJvMWg2Njg2ZyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/26gR2fIICTKW83LkA/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmNxY2cxbGwwZzN2bmNkcWhpa3ptcnlhdnZ2eDZkcTRnMGw0aDJyeiZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/5apK3ZOyfbdRe/giphy.gif',
+      'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdm9hOHgzdG5wOGo1bXZxOXh6d3p2eDlsN3dxcjRiaWRvYm9oMDZpYiZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/8vQSQ3cNXuDGo/giphy.gif'
+    ];
+    if (query) {
+      const q = query.toLowerCase();
+      setGifs(fallbacks.filter(f => f.toLowerCase().includes(q) || Math.random() > 0.4));
+    } else {
+      setGifs(fallbacks);
+    }
+    setLoadingGifs(false);
+  };
+
+  useEffect(() => {
+    if (emojiDrawerOpen && pickerTab === 'gif' && gifs.length === 0) {
+      fetchGifs('');
+    }
+  }, [emojiDrawerOpen, pickerTab]);
+
   const [showMdToolbar, setShowMdToolbar] = useState(false);
 
   // Mini-game active game-start message ID
@@ -2610,6 +2807,13 @@ export default function KikoShell() {
                                     onMove={(r, c) => handleGameMove(msg.id, r, c, 'Rock-Paper-Scissors')}
                                     currentUserId={currentUser?.id}
                                   />
+                                ) : msg.content.includes('Gomoku') ? (
+                                  <GomokuWidget
+                                    startMsgId={msg.id}
+                                    chatHistory={filteredChatHistory}
+                                    onMove={(r, c) => handleGameMove(msg.id, r, c, 'Gomoku')}
+                                    currentUserId={currentUser?.id}
+                                  />
                                 ) : (
                                   <TicTacToeWidget
                                     startMsgId={msg.id}
@@ -2645,7 +2849,21 @@ export default function KikoShell() {
                                     <div className={isOwn ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}>
                                       <div style={{ ...styles.msgText, color: '#fff', lineHeight: 1.45, position: 'relative', paddingBottom: '14px', minWidth: '70px' }}>
                                         <div style={{ wordBreak: 'break-word', marginRight: isOwn ? '15px' : '0px' }}>
-                                          {parseMarkdown(msg.content)}
+                                          {msg.content?.startsWith('[STICKER]') ? (
+                                            <img 
+                                              src={msg.content.replace('[STICKER] ', '')} 
+                                              alt="Sticker" 
+                                              style={{ width: '130px', height: '130px', borderRadius: '12px', objectFit: 'contain', display: 'block', margin: '4px 0' }} 
+                                            />
+                                          ) : msg.content?.startsWith('[GIF]') ? (
+                                            <img 
+                                              src={msg.content.replace('[GIF] ', '')} 
+                                              alt="GIF" 
+                                              style={{ maxWidth: '240px', maxHeight: '180px', borderRadius: '12px', objectFit: 'cover', display: 'block', margin: '4px 0' }} 
+                                            />
+                                          ) : (
+                                            parseMarkdown(msg.content)
+                                          )}
                                         </div>
                                         <div style={{
                                           position: 'absolute',
@@ -2969,37 +3187,158 @@ export default function KikoShell() {
                     </div>
                   )}
 
-                  {/* Emoji Drawer */}
+                  {/* Emoji/Sticker/GIF Drawer */}
                   {emojiDrawerOpen && (
                     <div style={{
                       position: 'absolute', bottom: '72px', right: '20px',
-                      background: 'var(--bg-tertiary)', border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: '14px', padding: '14px', zIndex: 200,
-                      width: '268px', boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
+                      background: '#313338', border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '14px', zIndex: 200,
+                      width: '320px', height: '400px',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
                       backdropFilter: 'blur(16px)',
+                      display: 'flex', flexDirection: 'column',
+                      overflow: 'hidden'
                     }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '700', letterSpacing: '0.5px' }}>FREQUENTLY USED</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px' }}>
-                        {['😀','😂','🥰','😍','🤩','😎','🥳','😭',
-                          '👍','❤️','🔥','🚀','🎉','💯','⭐','✨',
-                          '😮','😢','🙄','😤','👀','💀','🙏','🤝',
-                          '🍕','🎮','🎵','💻','📱','🌟','💎','👑'].map(emoji => (
+                      {/* Tabs Header */}
+                      <div style={{ display: 'flex', background: '#1e1f22', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        {[
+                          { id: 'emoji', label: '😀 Emojis' },
+                          { id: 'sticker', label: '✨ Stickers' },
+                          { id: 'gif', label: '🎬 GIFs' }
+                        ].map(t => (
                           <button
-                            key={emoji}
+                            key={t.id}
                             type="button"
-                            onClick={() => { setChatInput(prev => prev + emoji); playSFX('click'); }}
+                            onClick={() => { playSFX('click'); setPickerTab(t.id); }}
                             style={{
-                              background: 'transparent', border: 'none', fontSize: '1.25rem',
-                              cursor: 'pointer', borderRadius: '6px', padding: '4px',
-                              transition: 'background 0.1s, transform 0.1s', display: 'flex',
-                              alignItems: 'center', justifyContent: 'center',
+                              flex: 1, padding: '10px 0', border: 'none',
+                              background: pickerTab === t.id ? '#313338' : 'transparent',
+                              color: pickerTab === t.id ? '#00d2ff' : 'rgba(255,255,255,0.6)',
+                              fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer',
+                              borderBottom: pickerTab === t.id ? '2px solid #00d2ff' : 'none',
+                              transition: 'all 0.15s'
                             }}
-                            onMouseEnter={e => { e.target.style.background = 'rgba(255,255,255,0.08)'; e.target.style.transform = 'scale(1.2)'; }}
-                            onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.transform = 'scale(1)'; }}
                           >
-                            {emoji}
+                            {t.label}
                           </button>
                         ))}
+                      </div>
+
+                      {/* Tab Panels */}
+                      <div style={{ flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                        {pickerTab === 'emoji' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                            <input
+                              type="text"
+                              placeholder="Search emoji..."
+                              value={emojiSearch}
+                              onChange={e => setEmojiSearch(e.target.value)}
+                              style={{
+                                width: '100%', height: '32px', background: '#1e1f22',
+                                border: 'none', borderRadius: '6px', color: '#fff',
+                                padding: '0 10px', fontSize: '0.82rem', marginBottom: '10px',
+                                outline: 'none'
+                              }}
+                            />
+                            <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', paddingRight: '4px' }}>
+                              {[
+                                '😀','😂','🥰','😍','🤩','😎','🥳','😭',
+                                '👍','❤️','🔥','🚀','🎉','💯','⭐','✨',
+                                '😮','😢','🙄','😤','👀','💀','🙏','🤝',
+                                '🍕','🎮','🎵','💻','📱','🌟','💎','👑',
+                                '🦖','🐱','🐶','🐸','🦄','🍩','🍺','🚀',
+                                '👾','🎨','🎯','🎭','🎬','🎧','🎪','🎷',
+                                '🚗','✈️','🌍','🏔️','⏰','💡','💣','🔒'
+                              ].filter(e => emojiSearch ? e.toLowerCase().includes(emojiSearch.toLowerCase()) : true).map(emoji => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => { setChatInput(prev => prev + emoji); playSFX('click'); }}
+                                  style={{
+                                    background: 'transparent', border: 'none', fontSize: '1.35rem',
+                                    cursor: 'pointer', borderRadius: '6px', padding: '4px',
+                                    transition: 'all 0.1s', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center'
+                                  }}
+                                  onMouseEnter={e => { e.target.style.background = 'rgba(255,255,255,0.08)'; e.target.style.transform = 'scale(1.2)'; }}
+                                  onMouseLeave={e => { e.target.style.background = 'transparent'; e.target.style.transform = 'scale(1)'; }}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {pickerTab === 'sticker' && (
+                          <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', paddingRight: '4px' }}>
+                            {STICKERS.map(s => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  playSFX('pop');
+                                  sendMessage(`[STICKER] ${s.url}`);
+                                  setEmojiDrawerOpen(false);
+                                }}
+                                style={{
+                                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
+                                  borderRadius: '8px', padding: '8px', cursor: 'pointer',
+                                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                              >
+                                <img src={s.url} alt={s.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+                                <div style={{ fontSize: '0.64rem', color: 'rgba(255,255,255,0.5)' }}>{s.name}</div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {pickerTab === 'gif' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                            <input
+                              type="text"
+                              placeholder="Search GIFs on Giphy..."
+                              value={gifSearchQuery}
+                              onChange={e => {
+                                setGifSearchQuery(e.target.value);
+                                fetchGifs(e.target.value);
+                              }}
+                              style={{
+                                width: '100%', height: '32px', background: '#1e1f22',
+                                border: 'none', borderRadius: '6px', color: '#fff',
+                                padding: '0 10px', fontSize: '0.82rem', marginBottom: '10px',
+                                outline: 'none'
+                              }}
+                            />
+                            {loadingGifs ? (
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>Loading GIFs...</div>
+                            ) : (
+                              <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', paddingRight: '4px' }}>
+                                {gifs.map((url, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => {
+                                      playSFX('pop');
+                                      sendMessage(`[GIF] ${url}`);
+                                      setEmojiDrawerOpen(false);
+                                    }}
+                                    style={{
+                                      padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+                                      borderRadius: '8px', overflow: 'hidden', height: '80px'
+                                    }}
+                                  >
+                                    <img src={url} alt="GIF" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -3049,7 +3388,8 @@ export default function KikoShell() {
                               {[
                                 { name: 'Tic-Tac-Toe', label: '❌ Tic-Tac-Toe', color: '#a78bfa' },
                                 { name: 'Connect-Four', label: '🔴 Connect Four', color: '#00d2ff' },
-                                { name: 'Rock-Paper-Scissors', label: '🪨 Rock Paper Scissors', color: '#f472b6' }
+                                { name: 'Rock-Paper-Scissors', label: '🪨 Rock Paper Scissors', color: '#f472b6' },
+                                { name: 'Gomoku', label: '⚫ Gomoku (4-in-a-row)', color: '#10b981' }
                               ].map(game => (
                                 <button
                                   key={game.name}
@@ -3411,21 +3751,21 @@ export default function KikoShell() {
                             }
                             return true;
                           }).map(rel => (
-                            <div key={rel.id} style={{ ...styles.friendRow, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '10px 14px', borderRadius: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ position: 'relative' }}>
+                            <div key={rel.id} style={{ ...styles.friendRow, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: isMobile ? '8px 10px' : '10px 14px', borderRadius: '8px', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                                <div style={{ position: 'relative', flexShrink: 0 }}>
                                   <img src={rel.friend.avatarUrl} alt={rel.friend.username} style={styles.friendRowAvatar} />
                                   <span className={`status-dot ${rel.friend.status}`} style={{ ...styles.friendStatusDot, border: '2px solid #313338' }} />
                                 </div>
-                                <div>
-                                  <h4 style={{ fontSize: '0.9rem', color: '#fff', margin: 0 }}>{rel.friend.displayName}</h4>
-                                  <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <h4 style={{ fontSize: '0.9rem', color: '#fff', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{rel.friend.displayName}</h4>
+                                  <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     @{rel.friend.username} {rel.friend.customStatus ? `• ${rel.friend.customStatus}` : ''}
-                                  </span>
+                                  </div>
                                 </div>
                               </div>
                               
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                                 <button
                                   style={{
                                     background: 'rgba(255,255,255,0.05)',
