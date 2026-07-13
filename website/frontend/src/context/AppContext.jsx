@@ -277,12 +277,24 @@ export function AppProvider({ children }) {
   const apiFetch = async (url, options = {}) => {
     // In production: VITE_BACKEND_URL = https://kiko-api.railway.app
     // In development: http://localhost:5000
-    const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-    const targetUrl = url.startsWith('/') ? `${apiBaseUrl}${url}` : `${apiBaseUrl}/${url}`;
+    const directBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const targetUrl = url.startsWith('/') ? `${directBackendUrl}${url}` : `${directBackendUrl}/${url}`;
     try {
       return await fetch(targetUrl, options);
     } catch (e) {
-      console.error('[apiFetch Network Error]', e);
+      console.warn('[apiFetch Direct Connection Failed, attempting fallback]', e);
+      // Fallback: If direct connection failed (e.g. DNS block on up.railway.app or kiko-api.railway.app),
+      // retry using the relative path (Vercel rewrites proxy)
+      if (directBackendUrl.includes('railway.app')) {
+        const relativeUrl = url.startsWith('/') ? url : `/${url}`;
+        try {
+          console.log('[apiFetch Fallback] Retrying request with relative path:', relativeUrl);
+          return await fetch(relativeUrl, options);
+        } catch (fallbackErr) {
+          console.error('[apiFetch Fallback Failed]', fallbackErr);
+          throw new Error('Connection to backend failed. Please verify that the backend server is running and accessible.');
+        }
+      }
       throw new Error('Connection to backend failed. Please verify that the backend server is running and accessible.');
     }
   };
@@ -418,6 +430,20 @@ export function AppProvider({ children }) {
     socket.on('disconnect', () => {
       setConnected(false);
       console.log('[Socket] Disconnected.');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('[Socket] Connection error:', err);
+      // Fallback: If direct connection fails (DNS block), redirect socket connection to Vercel proxy
+      if (socketUrl !== window.location.origin && socketUrl.includes('railway.app') && socket.io.opts.hostname !== window.location.hostname) {
+        console.warn('[Socket] Direct connection failed, switching socket destination to relative host.');
+        socket.io.uri = window.location.origin;
+        socket.io.opts.hostname = window.location.hostname;
+        socket.io.opts.port = window.location.port;
+        socket.io.opts.secure = window.location.protocol === 'https:';
+        socket.io.opts.transports = ['polling']; // Force polling for Vercel rewrites proxy
+        socket.connect();
+      }
     });
 
     // ── Chat events ──────────────────────────────────────────
