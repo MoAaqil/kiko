@@ -118,6 +118,15 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('account');
   const [activeSubSection, setActiveSubSection] = useState('my-account');
 
+  const [isMobileView, setIsMobileView] = useState(() => window.innerWidth <= 768);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const [displayName, setDisplayName]         = useState(currentUser?.displayName || '');
   const [avatarUrl, setAvatarUrl]             = useState(currentUser?.avatarUrl || '');
   const [bannerColor, setBannerColor]         = useState(currentUser?.bannerColor || '#4f46e5');
@@ -141,6 +150,9 @@ export default function ProfileModal({ isOpen, onClose }) {
   const [saving, setSaving]                   = useState(false);
   const [autoDeleteDuration, setAutoDeleteDuration] = useState(currentUser?.autoDeleteDuration || 0);
   const [toast, setToast]                     = useState('');
+  const [authorizedApps, setAuthorizedApps] = useState([
+    { id: 'wuwa', name: 'Wuthering Waves', date: '6/26/2026', permissions: 8, icon: 'https://i.pinimg.com/736x/ec/2e/ec/ec2eece0024a10df7685a420b92c4cd7.jpg' }
+  ]);
 
   const [updateStatus, setUpdateStatus] = useState(updateAvailable ? 'available' : 'idle');
   const [latestVersionInfo, setLatestVersionInfo] = useState(contextLatestVersionInfo);
@@ -295,6 +307,7 @@ export default function ProfileModal({ isOpen, onClose }) {
         { id: 'my-account',    label: 'My Account',     tab: 'account',      icon: <User size={14} /> },
         { id: 'profiles',      label: 'Profiles',        tab: 'account',      icon: <Sliders size={14} /> },
         { id: 'connections',   label: 'Connections',     tab: 'connections',  icon: <Link2 size={14} /> },
+        { id: 'authorized-apps', label: 'Authorized Apps', tab: 'authorized-apps', icon: <Gamepad2 size={14} /> },
       ],
     },
     {
@@ -323,7 +336,11 @@ export default function ProfileModal({ isOpen, onClose }) {
     },
   ];
 
-  const setSection = (item) => { setActiveSubSection(item.id); setActiveTab(item.tab); };
+  const setSection = (item) => {
+    setActiveSubSection(item.id);
+    setActiveTab(item.tab);
+    if (isMobileView) setMobileMenuOpen(false);
+  };
 
   /* ── Dark glass input styles ──────────────────────── */
   const inp = {
@@ -877,22 +894,57 @@ export default function ProfileModal({ isOpen, onClose }) {
       <SectionTitle>Appearance</SectionTitle>
       <SectionDesc>Choose how Kiko looks and feels across the entire application.</SectionDesc>
       <GroupLabel>Theme</GroupLabel>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '24px' }}>
         {[
-          { id: 'dark',   label: 'Dark',        icon: <Moon size={18} />,    desc: 'Rich dark backgrounds' },
-          { id: 'light',  label: 'Light',        icon: <Sun size={18} />,     desc: 'Clean white surfaces' },
-          { id: 'amoled', label: 'AMOLED Black', icon: <Shield size={18} />,  desc: 'Pure black, battery saver' },
-        ].map(t => (
-          <div key={t.id} onClick={() => { setTheme(t.id); updateProfile({ theme: t.id }); }} style={{
-            padding: '16px', borderRadius: '12px', cursor: 'pointer',
-            border: theme === t.id ? `2px solid ${G.accent}` : `1px solid ${G.border}`,
-            background: theme === t.id ? 'rgba(139,92,246,0.12)' : G.bg2,
-            transition: 'all 0.15s',
-          }}>
-            <div style={{ color: theme === t.id ? G.accent : G.textMut, marginBottom: '8px' }}>{t.icon}</div>
-            <div style={{ fontWeight: '700', fontSize: '0.85rem', color: theme === t.id ? G.accent : G.text }}>{t.label}</div>
-            <div style={{ fontSize: '0.72rem', color: G.textMut, marginTop: '3px' }}>{t.desc}</div>
+          { id: 'light',  label: 'Light',  color: '#ffffff', textColor: '#313338' },
+          { id: 'dark',   label: 'Dark',   color: '#2b2d31', textColor: '#f0f2f8' },
+          { id: 'amoled', label: 'Darker', color: '#111214', textColor: '#b8bec9' },
+          { id: 'sync',   label: 'Sync',   color: 'linear-gradient(135deg, #2b2d31 50%, #ffffff 50%)', textColor: '#8b5cf6' },
+        ].map(t => {
+          const isActive = theme === t.id;
+          return (
+            <div key={t.id} onClick={() => { setTheme(t.id); updateProfile({ theme: t.id }); }} className={`theme-select-card ${isActive ? 'active' : ''}`}>
+              <div style={{
+                height: '40px', borderRadius: '6px', 
+                background: t.color, border: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: '1rem', fontWeight: 'bold', color: t.textColor }}>Aa</span>
+              </div>
+              <div style={{ fontWeight: '700', fontSize: '0.82rem', color: isActive ? G.accent : G.text, textAlign: 'center' }}>{t.label}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="nitro-banner-card">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', fontWeight: '700', color: 'white', fontSize: '1.0rem' }}>
+            👑 Make your Kiko look *juuusst* right
           </div>
+          <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.85)', marginTop: '4px' }}>
+            Create your own custom theme to make Kiko uniquely yours. Only with Nitro.
+          </div>
+        </div>
+        <button className="nitro-banner-btn" onClick={() => showToast('✨ Try custom themes in Nitro!')}>Try it out</button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <GroupLabel style={{ margin: 0 }}>Color Themes <span className="nitro-badge">Nitro</span></GroupLabel>
+        <button style={{ background: G.bg3, border: `1px solid ${G.border2}`, color: G.text, padding: '4px 12px', borderRadius: '16px', fontSize: '0.74rem', cursor: 'pointer', fontWeight: '700' }} onClick={() => showToast('✨ Unlocking Theme Customization...')}>Unlock with Nitro</button>
+      </div>
+
+      <div className="color-palette-grid">
+        {[
+          '#ff8fab', '#ffb7c5', '#ffe066', '#a78bfa', '#ff73fa', '#ff9068', '#4ade80', '#06b6d4',
+          '#3b82f6', '#ec4899', '#f43f5e', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#111827'
+        ].map((col, idx) => (
+          <div 
+            key={idx} 
+            className="color-palette-swatch" 
+            style={{ backgroundColor: col }}
+            onClick={() => showToast(`🎨 Color Theme preview activated! Upgrade to Nitro to save.`)}
+          />
         ))}
       </div>
       <GroupLabel>Message Density</GroupLabel>
@@ -1115,11 +1167,86 @@ export default function ProfileModal({ isOpen, onClose }) {
     </div>
   );
 
+  const renderAuthorizedApps = () => (
+    <div>
+      <SectionTitle>Authorized Apps</SectionTitle>
+      <SectionDesc>These are the applications that have access to your Kiko account. You can revoke their access at any time.</SectionDesc>
+
+      <div style={{
+        background: '#2b2d31', borderRadius: '8px', padding: '16px', marginBottom: '20px',
+        border: '1px solid rgba(255,255,255,0.06)'
+      }}>
+        <div style={{ fontWeight: '700', fontSize: '0.95rem', color: G.text, marginBottom: '6px' }}>Applications</div>
+        <p style={{ fontSize: '0.8rem', color: G.textSub, margin: 0, lineHeight: 1.4 }}>
+          Here are all the apps that are doing super cool things to make your Kiko experience super cooler. If it gets too chilly, you can remove them at any time.
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {authorizedApps.map(app => (
+          <div key={app.id} style={{
+            background: G.bg2, border: `1px solid ${G.border}`, borderRadius: '8px', padding: '16px',
+            display: 'flex', flexDirection: 'column', gap: '14px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <img src={app.icon} alt={app.name} style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }} />
+                <div>
+                  <div style={{ fontWeight: '700', color: G.text, fontSize: '0.88rem' }}>{app.name}</div>
+                  <div style={{ fontSize: '0.74rem', color: G.textSub, marginTop: '2px' }}>Authorized on {app.date}</div>
+                </div>
+              </div>
+              <button style={{ background: 'none', border: 'none', color: G.textSub, cursor: 'pointer' }}>•••</button>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 0' }}>
+                <span style={{ fontSize: '0.8rem', color: G.text, fontWeight: '600' }}>About and Policies</span>
+                <span style={{ color: G.textSub }}>&gt;</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 0', borderTop: `1px solid rgba(255,255,255,0.03)` }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: G.text, fontWeight: '600' }}>Permissions</div>
+                  <div style={{ fontSize: '0.72rem', color: G.textSub, marginTop: '2px' }}>{app.permissions} Permissions enabled</div>
+                </div>
+                <span style={{ color: G.textSub }}>&gt;</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <button 
+                onClick={() => {
+                  setAuthorizedApps(prev => prev.filter(a => a.id !== app.id));
+                  showToast(`✓ Deauthorized ${app.name}`);
+                }}
+                style={{
+                  padding: '6px 14px', borderRadius: '4px', background: '#ef4444', color: 'white',
+                  border: 'none', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer',
+                  transition: 'background-color 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
+                onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
+              >
+                Deauthorize
+              </button>
+            </div>
+          </div>
+        ))}
+        {authorizedApps.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '32px', color: G.textSub, fontSize: '0.88rem' }}>
+            No authorized applications found.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const tabRenderers = {
     account: renderAccount, connections: renderConnections, voice: renderVoice,
     chat: renderChatSettings,
     appearance: renderAppearance, nitro: renderNitro, accessibility: renderAccessibility, advanced: renderAdvanced,
     updates: renderUpdates,
+    'authorized-apps': renderAuthorizedApps,
   };
 
   /* ═══════════════════════════════════════════════════════
@@ -1173,92 +1300,128 @@ export default function ProfileModal({ isOpen, onClose }) {
         <div
           onClick={e => e.stopPropagation()}
           style={{
-            width: activeSubSection === 'profiles' ? '1240px' : '1060px', maxWidth: '100%', height: '700px', maxHeight: '95vh',
-            display: 'flex', borderRadius: '20px', overflow: 'hidden',
+            width: activeSubSection === 'profiles' ? '1240px' : '1060px', maxWidth: '100%', 
+            height: isMobileView ? '100dvh' : '700px', 
+            maxHeight: isMobileView ? '100dvh' : '95vh',
+            display: 'flex', borderRadius: isMobileView ? '0px' : '20px', overflow: 'hidden',
             background: G.bg0,
-            border: `1px solid ${G.border2}`,
+            border: isMobileView ? 'none' : `1px solid ${G.border2}`,
             boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)',
             animation: 'settingsFadeIn 0.25s cubic-bezier(0.34,1.56,0.64,1)',
             pointerEvents: 'all',
+            flexDirection: isMobileView ? 'column' : 'row'
           }}
         >
           {/* ── Left Sidebar ── */}
-          <div style={{
-            width: '220px', flexShrink: 0,
-            background: 'rgba(255,255,255,0.025)',
-            borderRight: `1px solid ${G.border}`,
-            display: 'flex', flexDirection: 'column',
-            padding: '24px 12px 20px',
-            overflowY: 'auto',
-          }}>
-            {/* Logo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', paddingLeft: '8px' }}>
-              <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(139,92,246,0.4)' }}>
-                <span style={{ color: '#fff', fontWeight: '900', fontSize: '0.85rem' }}>K</span>
-              </div>
-              <span style={{ fontWeight: '800', fontSize: '0.95rem', color: G.text, letterSpacing: '-0.3px' }}>Kiko Settings</span>
-            </div>
-
-            {/* Nav */}
-            {sidebarSections.map(section => (
-              <div key={section.label} style={{ marginBottom: '18px' }}>
-                <div style={{ fontSize: '0.6rem', fontWeight: '800', color: G.textMut, textTransform: 'uppercase', letterSpacing: '1px', padding: '0 8px', marginBottom: '4px' }}>
-                  {section.label}
+          {(!isMobileView || mobileMenuOpen) && (
+            <div style={{
+              width: isMobileView ? '100%' : '220px', flexShrink: 0,
+              background: 'rgba(255,255,255,0.025)',
+              borderRight: isMobileView ? 'none' : `1px solid ${G.border}`,
+              display: 'flex', flexDirection: 'column',
+              padding: '24px 12px 20px',
+              overflowY: 'auto',
+              height: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {/* Logo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', paddingLeft: '8px' }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(139,92,246,0.4)' }}>
+                  <span style={{ color: '#fff', fontWeight: '900', fontSize: '0.85rem' }}>K</span>
                 </div>
-                {section.items.map(item => {
-                  const isActive = activeSubSection === item.id;
-                  return (
-                    <div
-                      key={item.id}
-                      className="settings-nav-item"
-                      onClick={() => setSection(item)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', marginBottom: '1px',
-                        background: isActive ? 'rgba(139,92,246,0.18)' : 'transparent',
-                        color: isActive ? '#a78bfa' : G.textSub,
-                        fontWeight: isActive ? '700' : '500',
-                        fontSize: '0.84rem',
-                        boxShadow: isActive ? 'inset 2px 0 0 #8b5cf6' : 'none',
-                        transition: 'all 0.12s ease',
-                      }}
-                    >
-                      <span style={{ color: isActive ? '#a78bfa' : G.textMut, flexShrink: 0 }}>{item.icon}</span>
-                      <span style={{ flex: 1 }}>{item.label}</span>
-                      {item.badge && (
-                        <span style={{ fontSize: '0.56rem', fontWeight: '800', background: 'linear-gradient(90deg, #7c3aed, #6366f1)', color: '#fff', padding: '2px 7px', borderRadius: '6px', letterSpacing: '0.3px' }}>
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                <span style={{ fontWeight: '800', fontSize: '0.95rem', color: G.text, letterSpacing: '-0.3px' }}>Kiko Settings</span>
               </div>
-            ))}
 
-            {/* Logout */}
-            <div style={{ marginTop: 'auto', paddingTop: '14px', borderTop: `1px solid ${G.border}` }}>
-              <div onClick={() => { logout(); onClose(); }} style={{
-                display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px',
-                borderRadius: '8px', cursor: 'pointer', color: '#f87171',
-                fontSize: '0.84rem', fontWeight: '600',
-                transition: 'background 0.12s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <LogOut size={14} />
-                <span>Log Out</span>
+              {/* Nav */}
+              {sidebarSections.map(section => (
+                <div key={section.label} style={{ marginBottom: '18px' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: '800', color: G.textMut, textTransform: 'uppercase', letterSpacing: '1px', padding: '0 8px', marginBottom: '4px' }}>
+                    {section.label}
+                  </div>
+                  {section.items.map(item => {
+                    const isActive = activeSubSection === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className="settings-nav-item"
+                        onClick={() => setSection(item)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', marginBottom: '1px',
+                          background: isActive ? 'rgba(139,92,246,0.18)' : 'transparent',
+                          color: isActive ? '#a78bfa' : G.textSub,
+                          fontWeight: isActive ? '700' : '500',
+                          fontSize: '0.84rem',
+                          boxShadow: isActive ? 'inset 2px 0 0 #8b5cf6' : 'none',
+                          transition: 'all 0.12s ease',
+                        }}
+                      >
+                        <span style={{ color: isActive ? '#a78bfa' : G.textMut, flexShrink: 0 }}>{item.icon}</span>
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {item.badge && (
+                          <span style={{ fontSize: '0.56rem', fontWeight: '800', background: 'linear-gradient(90deg, #7c3aed, #6366f1)', color: '#fff', padding: '2px 7px', borderRadius: '6px', letterSpacing: '0.3px' }}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Logout */}
+              <div style={{ marginTop: 'auto', paddingTop: '14px', borderTop: `1px solid ${G.border}` }}>
+                <div onClick={() => { logout(); onClose(); }} style={{
+                  display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px',
+                  borderRadius: '8px', cursor: 'pointer', color: '#f87171',
+                  fontSize: '0.84rem', fontWeight: '600',
+                  transition: 'background 0.12s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <LogOut size={14} />
+                  <span>Log Out</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── Main Content ── */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '32px 36px 48px' }}>
-            <div style={{ maxWidth: '560px' }}>
-              {(tabRenderers[activeTab] || renderAccount)()}
+          {(!isMobileView || !mobileMenuOpen) && (
+            <div style={{ 
+              flex: 1, 
+              overflowY: 'auto', 
+              padding: isMobileView ? '24px 16px 48px' : '32px 36px 48px',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {isMobileView && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${G.border}`,
+                    borderRadius: '8px',
+                    color: G.text,
+                    padding: '8px 12px',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  ← Back to Menu
+                </button>
+              )}
+              <div style={{ maxWidth: '560px' }}>
+                {(tabRenderers[activeTab] || renderAccount)()}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ── Close button ── */}
           <button

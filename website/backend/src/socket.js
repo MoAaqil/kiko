@@ -60,6 +60,30 @@ export function setupSocketIO(io) {
     // Join user-specific room for direct notifications
     socket.join(`user:${userId}`);
 
+    // Join all channel rooms for servers this user is a member of
+    try {
+      const memberships = await prisma.serverMember.findMany({
+        where: { userId },
+        include: {
+          server: {
+            include: {
+              channels: true
+            }
+          }
+        }
+      });
+      memberships.forEach(m => {
+        if (m.server && m.server.channels) {
+          m.server.channels.forEach(ch => {
+            socket.join(`channel:${ch.id}`);
+            console.log(`[Socket] Auto-joined channel room: channel:${ch.id} for user ${socket.username}`);
+          });
+        }
+      });
+    } catch (chErr) {
+      console.error('[Socket Channel Join Error]', chErr);
+    }
+
     // Update user status in database to online
     try {
       await prisma.user.update({
@@ -217,11 +241,12 @@ export function setupSocketIO(io) {
         });
 
         // Dispatch message INSTANTLY
+        const msgResponse = { ...message, nonce: msgData.nonce || null };
         if (channelId) {
-          io.to(`channel:${channelId}`).emit('new_message', message);
+          io.to(`channel:${channelId}`).emit('new_message', msgResponse);
         } else if (receiverId) {
-          io.to(`user:${receiverId}`).emit('new_message', message);
-          io.to(`user:${userId}`).emit('new_message', message);
+          io.to(`user:${receiverId}`).emit('new_message', msgResponse);
+          io.to(`user:${userId}`).emit('new_message', msgResponse);
         }
 
         // 3. Asynchronous Link Scraping (Background non-blocking thread)
@@ -283,6 +308,12 @@ export function setupSocketIO(io) {
       } catch (err) {
         console.error('[Socket Send Message Error]', err);
       }
+    });
+
+    // SPOTIFY PLAYBACK SYNC BROADCAST
+    socket.on('spotify_sync', (data) => {
+      const { room, embedUrl, trackName, senderName } = data;
+      socket.to(room).emit('spotify_sync_play', { embedUrl, trackName, senderName });
     });
 
     // DELETE MESSAGE

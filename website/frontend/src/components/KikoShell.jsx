@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { 
   MessageSquare, Users, Hash, Plus, Search, X, CornerUpLeft, Send,
   Paperclip, Volume2, Video, Compass, Shield, LogOut, Trash2, Menu,
-  Gamepad2, Copy, Check, Phone, Monitor, Mic, MicOff, Headphones, Settings,
+  Gamepad2, Copy, Check, Phone, PhoneOff, Monitor, Mic, MicOff, Headphones, Settings,
   ChevronDown, MoreVertical, User, Link2, HelpCircle, Moon, Sun, Sliders, Pencil
 } from 'lucide-react';
 import WebRTCCall from './WebRTCCall.jsx';
@@ -16,7 +16,11 @@ const STICKERS = [
   { id: 'cat_love', name: 'Cat Love', url: 'https://i.pinimg.com/736x/d8/36/af/d836af1443b4572d778b39b73dc40b77.jpg' },
   { id: 'cat_surprised', name: 'Cat Surprised', url: 'https://i.pinimg.com/736x/98/5e/80/985e80d0ceda54b014e5891a4c9c7500.jpg' },
   { id: 'cat_sleeping', name: 'Cat Sleeping', url: 'https://i.pinimg.com/736x/0b/30/18/0b301887831b5ca9d75f4e89a7867b79.jpg' },
-  { id: 'cat_crying', name: 'Cat Crying', url: 'https://i.pinimg.com/736x/77/fa/cc/77facc4484241327c75bcdb2a2f5c5ef.jpg' }
+  { id: 'cat_crying', name: 'Cat Crying', url: 'https://i.pinimg.com/736x/77/fa/cc/77facc4484241327c75bcdb2a2f5c5ef.jpg' },
+  { id: 'sticker_cool', name: 'Cool Doge', url: 'https://i.pinimg.com/736x/3b/68/d8/3b68d80f9078d10b778b746816ea4120.jpg' },
+  { id: 'sticker_hype', name: 'Hype Pepe', url: 'https://i.pinimg.com/736x/ec/2e/ec/ec2eece0024a10df7685a420b92c4cd7.jpg' },
+  { id: 'sticker_laugh', name: 'LMAO', url: 'https://i.pinimg.com/736x/ec/c0/8b/ecc08b4efcbdfbe9a0f02377c8e9b60b.jpg' },
+  { id: 'sticker_cry', name: 'Sad Frog', url: 'https://i.pinimg.com/736x/7d/5a/0b/7d5a0b73c24a27bc97e59b6b77c8ef4c.jpg' }
 ];
 
 // Simple Markdown + Code block parser
@@ -37,6 +41,15 @@ function parseMarkdown(text) {
   html = html.replace(/\*([\s\S]+?)\*/g, '<em>$1</em>');
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+function getSpotifyEmbedUrl(content) {
+  if (!content) return null;
+  const match = content.match(/https:\/\/open\.spotify\.com\/(track|playlist|album|artist)\/([a-zA-Z0-9]+)/i);
+  if (match) {
+    return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+  }
+  return null;
 }
 
 // ─── Web Audio SFX Synthesizer ────────────────────────────────────────────────
@@ -196,13 +209,18 @@ function VoiceWaveform({ audioUrl }) {
 
       // Connect MediaElementSource ONCE only
       if (!connectedRef.current) {
-        const source   = audioCtx.createMediaElementSource(audio);
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
-        analyser.connect(audioCtx.destination); // critical: must reach destination for sound!
-        analyserRef.current = analyser;
-        connectedRef.current = true;
+        try {
+          const source   = audioCtx.createMediaElementSource(audio);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          analyser.connect(audioCtx.destination);
+          analyserRef.current = analyser;
+          connectedRef.current = true;
+        } catch (err) {
+          console.warn('[VoiceWaveform] createMediaElementSource failed (likely already connected):', err);
+          connectedRef.current = true;
+        }
       }
     } catch (e) {
       console.warn('[VoiceWaveform] AudioContext error:', e);
@@ -755,6 +773,169 @@ function GomokuWidget({ startMsgId, chatHistory, onMove, currentUserId }) {
   );
 }
 
+function MemoryMatchWidget({ startMsgId, chatHistory, onMove, currentUserId }) {
+  const cardsList = React.useMemo(() => {
+    let hash = 0;
+    const seed = startMsgId || 'default_seed';
+    for (let i = 0; i < seed.length; i++) {
+      hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const symbols = ['🍎', '🍎', '🍌', '🍌', '🍇', '🍇', '🍓', '🍓', '🍒', '🍒', '🍍', '🍍', '🥝', '🥝', '🍉', '🍉'];
+    let currentIndex = symbols.length, temp, randomIndex;
+    while (currentIndex !== 0) {
+      hash = (hash * 9301 + 49297) % 233280;
+      randomIndex = Math.floor((hash / 233280) * currentIndex);
+      currentIndex--;
+      temp = symbols[currentIndex];
+      symbols[currentIndex] = symbols[randomIndex];
+      symbols[randomIndex] = temp;
+    }
+    return symbols;
+  }, [startMsgId]);
+
+  const moves = chatHistory.filter(m => m.content?.startsWith(`[GAME_MOVE] ${startMsgId},`));
+  const startMsg = chatHistory.find(m => m.id === startMsgId);
+  const playerX = startMsg ? startMsg.userId : null;
+
+  let playerO = null;
+  for (const m of moves) {
+    if (m.userId !== playerX) {
+      playerO = m.userId;
+      break;
+    }
+  }
+
+  let player1Score = 0;
+  let player2Score = 0;
+  let matchedIndices = new Set();
+  let faceUpIndices = [];
+  let currentTurnUserId = playerX;
+
+  for (let i = 0; i < moves.length; i += 2) {
+    const firstIdx = parseInt(moves[i].content.replace(`[GAME_MOVE] ${startMsgId},`, ''));
+    if (i + 1 < moves.length) {
+      const secondIdx = parseInt(moves[i + 1].content.replace(`[GAME_MOVE] ${startMsgId},`, ''));
+      if (!isNaN(firstIdx) && !isNaN(secondIdx)) {
+        if (cardsList[firstIdx] === cardsList[secondIdx]) {
+          matchedIndices.add(firstIdx);
+          matchedIndices.add(secondIdx);
+          if (moves[i].userId === playerX) player1Score++;
+          else player2Score++;
+          currentTurnUserId = moves[i].userId;
+        } else {
+          currentTurnUserId = moves[i].userId === playerX ? (playerO || 'opponent') : playerX;
+        }
+      }
+    } else {
+      currentTurnUserId = moves[i].userId;
+    }
+  }
+
+  let activeFlips = [];
+  if (moves.length > 0) {
+    if (moves.length % 2 === 1) {
+      const lastMove = moves[moves.length - 1];
+      activeFlips.push(parseInt(lastMove.content.replace(`[GAME_MOVE] ${startMsgId},`, '')));
+    } else {
+      const lastMove = moves[moves.length - 1];
+      const prevMove = moves[moves.length - 2];
+      activeFlips.push(parseInt(lastMove.content.replace(`[GAME_MOVE] ${startMsgId},`, '')));
+      activeFlips.push(parseInt(prevMove.content.replace(`[GAME_MOVE] ${startMsgId},`, '')));
+    }
+  }
+
+  if (playerO === null && currentUserId !== playerX) {
+    playerO = currentUserId;
+  }
+
+  const isMyTurn = currentTurnUserId === 'opponent' ? currentUserId !== playerX : currentUserId === currentTurnUserId;
+  const isFull = matchedIndices.size === 16;
+
+  let statusMsg = '';
+  if (isFull) {
+    if (player1Score === player2Score) {
+      statusMsg = '🤝 Draw!';
+    } else {
+      const winnerId = player1Score > player2Score ? playerX : playerO;
+      if (winnerId === currentUserId) {
+        statusMsg = '🎉 You won!';
+      } else {
+        const winnerName = player1Score > player2Score ? (startMsg?.user?.displayName || 'Player 1') : 'Opponent';
+        statusMsg = `🎉 ${winnerName} won!`;
+      }
+    }
+  } else {
+    statusMsg = isMyTurn ? '👉 Your turn!' : '⏳ Opponent\'s turn...';
+  }
+
+  return (
+    <div style={{
+      padding: '14px', background: 'rgba(20,20,35,0.4)',
+      border: '1px solid rgba(217,70,239,0.3)', borderRadius: '14px',
+      width: '240px', display: 'flex', flexDirection: 'column', gap: '10px',
+      backdropFilter: 'blur(12px)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontWeight: '700', fontSize: '0.82rem', color: '#d946ef' }}>🧠 Memory Match</span>
+        <span style={{ fontSize: '0.72rem', fontWeight: '600', color: isFull ? '#ffd700' : isMyTurn ? '#d946ef' : 'rgba(255,255,255,0.4)' }}>{statusMsg}</span>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', padding: '0 4px' }}>
+        <span>P1: {player1Score} pts</span>
+        <span>P2: {player2Score} pts</span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+        {cardsList.map((symbol, idx) => {
+          const isMatched = matchedIndices.has(idx);
+          const isFlipped = activeFlips.includes(idx);
+          const showFace = isMatched || isFlipped;
+
+          return (
+            <button
+              key={idx}
+              disabled={showFace || isFull || !isMyTurn}
+              onClick={() => { playSFX('click'); onMove(idx, undefined, 'Memory-Match'); }}
+              style={{
+                height: '46px',
+                background: showFace ? 'rgba(255,255,255,0.1)' : 'rgba(217,70,239,0.15)',
+                border: showFace ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(217,70,239,0.3)',
+                borderRadius: '8px',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: (showFace || !isMyTurn) ? 'default' : 'pointer',
+                opacity: (!showFace && !isMyTurn) ? 0.6 : 1,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {showFace ? symbol : '❓'}
+            </button>
+          );
+        })}
+      </div>
+
+      {isFull && (
+        <button
+          onClick={() => { playSFX('click'); onMove('reset', 'reset', 'Memory-Match'); }}
+          style={{
+            padding: '7px', background: 'linear-gradient(135deg, rgba(217,70,239,0.2), rgba(99,102,241,0.2))',
+            border: '1px solid rgba(217,70,239,0.4)', borderRadius: '8px',
+            color: '#d946ef', fontSize: '0.78rem', cursor: 'pointer', fontWeight: '700',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => e.target.style.background = 'linear-gradient(135deg, rgba(217,70,239,0.3), rgba(99,102,241,0.3))'}
+          onMouseLeave={e => e.target.style.background = 'linear-gradient(135deg, rgba(217,70,239,0.2), rgba(99,102,241,0.2))'}
+        >
+          🔄 New Game
+        </button>
+      )}
+    </div>
+  );
+}
+
 function RockPaperScissorsWidget({ startMsgId, chatHistory, onMove, currentUserId }) {
   const moves = chatHistory.filter(
     m => m.content?.startsWith(`[GAME_MOVE] ${startMsgId},`)
@@ -967,13 +1148,13 @@ function EphemeralAttachment({ fileUrl, fileName, fileType, fileSize, expiresAt,
         </div>
       )}
 
-      <div style={styles.attachmentCard} className="glass-panel">
+      <div className={(isImage || isVideo) ? "media-embed-card" : "glass-panel"} style={(!isImage && !isVideo) ? styles.attachmentCard : {}}>
         {isImage && (
           <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-            <img src={fileUrl} alt={fileName} style={styles.attachmentPreview} />
+            <img src={fileUrl} alt={fileName} className="media-embed-image" />
           </a>
         )}
-        {isVideo && <video src={fileUrl} controls style={styles.attachmentVideo} />}
+        {isVideo && <video src={fileUrl} controls className="media-embed-video" />}
         {isAudio && <VoiceWaveform audioUrl={fileUrl} />}
 
         {/* PDF or generic file card */}
@@ -1067,6 +1248,7 @@ export default function KikoShell() {
     removeReaction,
     sendTypingStatus,
     joinCallRoom,
+    leaveCallRoom,
     callRoomId,
     callType,
     voiceChannelsState,
@@ -1084,13 +1266,56 @@ export default function KikoShell() {
     deafened,
     toggleMic,
     toggleDeafen,
+    selectedInputDeviceId,
+    selectedOutputDeviceId,
+    setInputDevice,
+    setOutputDevice,
     unreadCounts,
     updateAvailable,
     latestVersion,
+    syncSpotifyUrl,
+    setSyncSpotifyUrl,
+    socketRef,
   } = useApp();
 
   // Hover state for leftmost sidebar server items
   const [hoveredServerId, setHoveredServerId] = useState(null);
+
+  // Mic/Headphones Popover States
+  const [micPopoverOpen, setMicPopoverOpen] = useState(false);
+  const [deafenPopoverOpen, setDeafenPopoverOpen] = useState(false);
+  const [audioInputs, setAudioInputs] = useState([]);
+  const [audioOutputs, setAudioOutputs] = useState([]);
+  const [inputVol, setInputVol] = useState(80);
+  const [outputVol, setOutputVol] = useState(80);
+
+  const loadAudioDevices = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      setAudioInputs(devices.filter(d => d.kind === 'audioinput'));
+      setAudioOutputs(devices.filter(d => d.kind === 'audiooutput'));
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    loadAudioDevices();
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', loadAudioDevices);
+      return () => navigator.mediaDevices.removeEventListener('devicechange', loadAudioDevices);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setMicPopoverOpen(false);
+      setDeafenPopoverOpen(false);
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
+
 
   // Delete confirmation modal state
   const [deleteConfirmMessageId, setDeleteConfirmMessageId] = useState(null);
@@ -1195,26 +1420,31 @@ export default function KikoShell() {
   const [gifs, setGifs] = useState([]);
   const [loadingGifs, setLoadingGifs] = useState(false);
 
+  const [stickerSearchQuery, setStickerSearchQuery] = useState('');
+  const [stickers, setStickers] = useState([]);
+  const [loadingStickers, setLoadingStickers] = useState(false);
+
   const fetchGifs = async (query = '') => {
     setLoadingGifs(true);
     try {
       const limit = 12;
-      const apiKey = 'dc6zaTOxFJmzC';
+      const apiKey = 'LIVDSRZULELA';
       const url = query 
-        ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=${limit}`
-        : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}`;
+        ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${apiKey}&limit=${limit}`
+        : `https://tenor.googleapis.com/v2/featured?key=${apiKey}&limit=${limit}`;
+      
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
-        if (json.data && json.data.length > 0) {
-          const urls = json.data.map(item => item.images.fixed_height.url);
+        if (json.results && json.results.length > 0) {
+          const urls = json.results.map(item => item.media_formats?.gif?.url || item.media_formats?.tinygif?.url).filter(Boolean);
           setGifs(urls);
           setLoadingGifs(false);
           return;
         }
       }
     } catch (err) {
-      console.warn("Failed to fetch from Giphy api, using fallbacks:", err);
+      console.warn("Failed to fetch from Tenor api, using fallbacks:", err);
     }
     const fallbacks = [
       'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3hmdWpsbGdvdnVnb241b3I5d2c2M3psODZtYjh0ZmhqMDV6ZHdtNyZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/13CoXDiaCcC2EA/giphy.gif',
@@ -1230,18 +1460,46 @@ export default function KikoShell() {
       'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmNxY2cxbGwwZzN2bmNkcWhpa3ptcnlhdnZ2eDZkcTRnMGw0aDJyeiZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/5apK3ZOyfbdRe/giphy.gif',
       'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdm9hOHgzdG5wOGo1bXZxOXh6d3p2eDlsN3dxcjRiaWRvYm9oMDZpYiZlcD12MV9naWZzX3RyZW5kaW5nJmN0PWc/8vQSQ3cNXuDGo/giphy.gif'
     ];
-    if (query) {
-      const q = query.toLowerCase();
-      setGifs(fallbacks.filter(f => f.toLowerCase().includes(q) || Math.random() > 0.4));
-    } else {
-      setGifs(fallbacks);
-    }
+    setGifs(fallbacks);
     setLoadingGifs(false);
   };
 
+  const fetchStickers = async (query = '') => {
+    setLoadingStickers(true);
+    try {
+      const limit = 12;
+      const apiKey = 'LIVDSRZULELA';
+      const searchQ = query ? `${query} sticker` : 'sticker';
+      const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(searchQ)}&key=${apiKey}&limit=${limit}&searchfilter=sticker`;
+      
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.results && json.results.length > 0) {
+          const list = json.results.map((item, index) => ({
+            id: item.id || `st-${index}`,
+            name: item.title || 'Sticker',
+            url: item.media_formats?.gif?.url || item.media_formats?.tinygif?.url
+          })).filter(s => s.url);
+          setStickers(list);
+          setLoadingStickers(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch stickers, using fallbacks:", err);
+    }
+    setStickers(STICKERS);
+    setLoadingStickers(false);
+  };
+
   useEffect(() => {
-    if (emojiDrawerOpen && pickerTab === 'gif' && gifs.length === 0) {
-      fetchGifs('');
+    if (emojiDrawerOpen) {
+      if (pickerTab === 'gif' && gifs.length === 0) {
+        fetchGifs('');
+      } else if (pickerTab === 'sticker' && stickers.length === 0) {
+        fetchStickers('');
+      }
     }
   }, [emojiDrawerOpen, pickerTab]);
 
@@ -1700,32 +1958,10 @@ export default function KikoShell() {
         className={`kiko-server-bar ${mobileSidebarOpen ? 'open' : ''}`}
       >
         {/* Kiko Logo representing DMs */}
-        <div 
-          style={{
-            position: 'relative',
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}
-          onMouseEnter={() => setHoveredServerId('inbox')}
-          onMouseLeave={() => setHoveredServerId(null)}
-        >
-          {/* Left Pill */}
-          <div style={{
-            position: 'absolute',
-            left: 0,
-            width: '4px',
-            height: activeServerId === null ? '40px' : (hoveredServerId === 'inbox' ? '20px' : '0px'),
-            background: '#fff',
-            borderRadius: '0 4px 4px 0',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            opacity: activeServerId === null || hoveredServerId === 'inbox' ? 1 : 0,
-            transform: 'translateY(-50%)',
-            top: '50%'
-          }} />
+        <div className={`server-btn-wrapper ${activeServerId === null ? 'active' : ''}`}>
+          <div className={`server-pill ${activeServerId === null ? 'active' : 'idle'}`} />
           <div 
-            className="logo-container animate-hover" 
+            className="logo-container animate-hover server-avatar-btn" 
             onClick={() => {
               setActiveServerId(null);
               setActiveChannelId(null);
@@ -1734,9 +1970,7 @@ export default function KikoShell() {
             }}
             style={{
               ...styles.logoWrapper,
-              borderRadius: activeServerId === null || hoveredServerId === 'inbox' ? '16px' : '50%',
               overflow: 'hidden',
-              transition: 'border-radius 0.2s ease, background-color 0.2s ease',
             }}
           >
             <KikoLogo size={42} />
@@ -1749,39 +1983,15 @@ export default function KikoShell() {
         <div style={styles.serverListScroll}>
           {servers.map(server => {
             const isServerActive = activeServerId === server.id;
-            const isServerHovered = hoveredServerId === server.id;
             return (
               <div 
                 key={server.id}
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-                onMouseEnter={() => setHoveredServerId(server.id)}
-                onMouseLeave={() => setHoveredServerId(null)}
+                className={`server-btn-wrapper ${isServerActive ? 'active' : ''}`}
               >
-                {/* Left Pill */}
-                <div style={{
-                  position: 'absolute',
-                  left: 0,
-                  width: '4px',
-                  height: isServerActive ? '40px' : (isServerHovered ? '20px' : '0px'),
-                  background: '#fff',
-                  borderRadius: '0 4px 4px 0',
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  opacity: isServerActive || isServerHovered ? 1 : 0,
-                  transform: 'translateY(-50%)',
-                  top: '50%'
-                }} />
+                <div className={`server-pill ${isServerActive ? 'active' : 'idle'}`} />
                 <div 
-                  style={{
-                    ...styles.serverItem,
-                    borderRadius: isServerActive || isServerHovered ? '16px' : '50%',
-                    transition: 'border-radius 0.2s ease, background-color 0.2s ease',
-                  }}
+                  className="server-avatar-btn"
+                  style={styles.serverItem}
                   onClick={() => {
                     setActiveServerId(server.id);
                     // Find first text channel
@@ -2260,6 +2470,87 @@ export default function KikoShell() {
           </div>
         )}
 
+        {/* Docked Voice Sidebar Controls */}
+        {callRoomId && (
+          <div className="voice-docked-panel">
+            <div className="voice-connection-status">
+              <div className="voice-status-indicator" />
+              <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--online)', fontWeight: '700' }}>Voice Connected</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
+                  {(() => {
+                    if (callRoomId.startsWith('dm-')) return 'Direct Message';
+                    const foundCh = (servers || []).flatMap(s => s.channels || []).find(c => c.id === callRoomId);
+                    return foundCh ? `#${foundCh.name}` : 'Voice Room';
+                  })()}
+                </span>
+              </div>
+            </div>
+            <div className="voice-docked-controls">
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  onClick={() => toggleMic()}
+                  title={micMuted ? "Unmute Mic" : "Mute Mic"}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    color: micMuted ? '#ef4444' : 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  className="user-tray-btn"
+                >
+                  {micMuted ? <MicOff size={14} /> : <Mic size={14} />}
+                </button>
+                <button
+                  onClick={() => toggleDeafen()}
+                  title={deafened ? "Undeafen" : "Deafen"}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    color: deafened ? '#ef4444' : 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  className="user-tray-btn"
+                >
+                  <Headphones size={14} />
+                </button>
+              </div>
+              <button
+                onClick={() => leaveCallRoom()}
+                title="Disconnect Call"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  cursor: 'pointer',
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  color: '#f87171',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                }}
+                className="user-tray-btn"
+              >
+                <PhoneOff size={12} />
+                Disconnect
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Bottom User Settings Tray */}
         <div style={{
           ...styles.userTray,
@@ -2315,43 +2606,172 @@ export default function KikoShell() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <button
-              onClick={() => toggleMic()}
-              title={micMuted ? "Unmute Mic" : "Mute Mic"}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '4px',
-                color: micMuted ? '#ef4444' : 'var(--text-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              className="user-tray-btn"
-            >
-              {micMuted ? <MicOff size={15} /> : <Mic size={15} />}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <button
+                onClick={() => toggleMic()}
+                title={micMuted ? "Unmute Mic" : "Mute Mic"}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px 4px 6px 6px',
+                  borderTopLeftRadius: '4px',
+                  borderBottomLeftRadius: '4px',
+                  color: micMuted ? '#ef4444' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="user-tray-btn"
+              >
+                {micMuted ? <MicOff size={15} /> : <Mic size={15} />}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setMicPopoverOpen(!micPopoverOpen); setDeafenPopoverOpen(false); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px 6px 6px 2px',
+                  borderTopRightRadius: '4px',
+                  borderBottomRightRadius: '4px',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="user-tray-btn"
+              >
+                <ChevronDown size={10} />
+              </button>
 
-            <button
-              onClick={() => toggleDeafen()}
-              title={deafened ? "Undeafen" : "Deafen"}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '4px',
-                color: deafened ? '#ef4444' : 'var(--text-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              className="user-tray-btn"
-            >
-              <Headphones size={15} />
-            </button>
+              {/* Mic settings popover */}
+              {micPopoverOpen && (
+                <div className="voice-popover" onClick={(e) => e.stopPropagation()}>
+                  <div className="voice-popover-header">Input Device</div>
+                  <select 
+                    className="voice-popover-select" 
+                    value={selectedInputDeviceId} 
+                    onChange={e => setInputDevice(e.target.value)}
+                  >
+                    {audioInputs.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label ? d.label.replace(/\s*\(.*?\)\s*/g, '').trim() : `Mic (${d.deviceId.slice(0, 5)})`}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="voice-popover-header">Input Profile</div>
+                  <select className="voice-popover-select" defaultValue="studio">
+                    <option value="studio">Studio</option>
+                    <option value="standard">Standard</option>
+                  </select>
+
+                  <div className="voice-popover-slider-container">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      <span>Input Volume</span>
+                      <span>{inputVol}%</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={inputVol} 
+                      onChange={(e) => setInputVol(e.target.value)} 
+                      className="voice-popover-slider" 
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <span>Push to Talk</span>
+                    <input type="checkbox" style={{ accentColor: 'var(--accent-purple)', cursor: 'pointer' }} />
+                  </div>
+
+                  <div className="voice-popover-link" onClick={() => { setMicPopoverOpen(false); setProfileOpen(true); }}>
+                    <span>Voice Settings</span>
+                    <Settings size={12} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <button
+                onClick={() => toggleDeafen()}
+                title={deafened ? "Undeafen" : "Deafen"}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px 4px 6px 6px',
+                  borderTopLeftRadius: '4px',
+                  borderBottomLeftRadius: '4px',
+                  color: deafened ? '#ef4444' : 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="user-tray-btn"
+              >
+                <Headphones size={15} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDeafenPopoverOpen(!deafenPopoverOpen); setMicPopoverOpen(false); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px 6px 6px 2px',
+                  borderTopRightRadius: '4px',
+                  borderBottomRightRadius: '4px',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="user-tray-btn"
+              >
+                <ChevronDown size={10} />
+              </button>
+
+              {/* Output settings popover */}
+              {deafenPopoverOpen && (
+                <div className="voice-popover" style={{ left: 'auto', right: '-40px' }} onClick={(e) => e.stopPropagation()}>
+                  <div className="voice-popover-header">Output Device</div>
+                  <select 
+                    className="voice-popover-select" 
+                    value={selectedOutputDeviceId} 
+                    onChange={e => setOutputDevice(e.target.value)}
+                  >
+                    {audioOutputs.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label ? d.label.replace(/\s*\(.*?\)\s*/g, '').trim() : `Speaker (${d.deviceId.slice(0, 5)})`}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="voice-popover-slider-container">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      <span>Output Volume</span>
+                      <span>{outputVol}%</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={outputVol} 
+                      onChange={(e) => setOutputVol(e.target.value)} 
+                      className="voice-popover-slider" 
+                    />
+                  </div>
+
+                  <div className="voice-popover-link" onClick={() => { setDeafenPopoverOpen(false); setProfileOpen(true); }}>
+                    <span>Voice Settings</span>
+                    <Settings size={12} />
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={() => setProfileOpen(true)}
@@ -2431,8 +2851,8 @@ export default function KikoShell() {
                     {activeDMFriend?.friend?.customStatus || activeDMFriend?.friend?.status?.toLowerCase() || 'offline'}
                   </span>
                 </div>
-                {/* Voice, Video & Screen Calls buttons — hidden on mobile to prevent overflow */}
-                <div style={{ display: isMobile ? 'none' : 'flex', gap: '8px', marginLeft: '12px' }}>
+                {/* Voice, Video & Screen Calls buttons — visible on mobile with compact styling */}
+                <div style={{ display: 'flex', gap: isMobile ? '4px' : '8px', marginLeft: isMobile ? '4px' : '12px' }}>
                   {(() => {
                     const dmRoomId = `dm-${[currentUser?.id, activeDMUserId].sort().join('-')}`;
                     const activeParticipants = voiceChannelsState[dmRoomId];
@@ -2444,8 +2864,8 @@ export default function KikoShell() {
                         <button
                           className="btn btn-primary"
                           style={{
-                            padding: '6px 14px',
-                            fontSize: '0.82rem',
+                            padding: isMobile ? '4px 8px' : '6px 14px',
+                            fontSize: isMobile ? '0.72rem' : '0.82rem',
                             backgroundColor: '#23a55a',
                             borderColor: '#23a55a',
                             color: '#fff',
@@ -2455,25 +2875,25 @@ export default function KikoShell() {
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
+                            gap: '4px',
                             animation: 'pulseGlow 1.8s infinite alternate',
                           }}
                           onClick={() => {
                             joinCallRoom(dmRoomId, 'voice');
                           }}
                         >
-                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'pulse 1s infinite' }} />
-                          Join Active Call
+                          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#fff', animation: 'pulse 1s infinite' }} />
+                          {isMobile ? 'Join' : 'Join Active Call'}
                         </button>
                       );
                     }
 
                     return (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: isMobile ? '4px' : '8px' }}>
                         <button
                           style={{
-                            width: '34px',
-                            height: '34px',
+                            width: isMobile ? '28px' : '34px',
+                            height: isMobile ? '28px' : '34px',
                             borderRadius: '50%',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -2488,12 +2908,12 @@ export default function KikoShell() {
                           onClick={() => joinCallRoom(dmRoomId, 'voice')}
                           title="Audio Call"
                         >
-                          <Phone size={16} />
+                          <Phone size={isMobile ? 13 : 16} />
                         </button>
                         <button
                           style={{
-                            width: '34px',
-                            height: '34px',
+                            width: isMobile ? '28px' : '34px',
+                            height: isMobile ? '28px' : '34px',
                             borderRadius: '50%',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -2508,7 +2928,7 @@ export default function KikoShell() {
                           onClick={() => joinCallRoom(dmRoomId, 'video')}
                           title="Video Call"
                         >
-                          <Video size={16} />
+                          <Video size={isMobile ? 13 : 16} />
                         </button>
                         {(() => {
                           const someoneSharingScreen = activeParticipants && activeParticipants.some(p => p.streamType === 'screen' && p.userId !== currentUser?.id);
@@ -2516,8 +2936,8 @@ export default function KikoShell() {
                             <button
                               disabled={someoneSharingScreen}
                               style={{
-                                width: '34px',
-                                height: '34px',
+                                width: isMobile ? '28px' : '34px',
+                                height: isMobile ? '28px' : '34px',
                                 borderRadius: '50%',
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -2533,7 +2953,7 @@ export default function KikoShell() {
                               onClick={() => joinCallRoom(dmRoomId, 'screen')}
                               title={someoneSharingScreen ? "Someone else is sharing their screen" : "Screen Share"}
                             >
-                              <Monitor size={16} />
+                              <Monitor size={isMobile ? 13 : 16} />
                             </button>
                           );
                         })()}
@@ -2551,18 +2971,21 @@ export default function KikoShell() {
           </div>
 
           <div style={styles.headerActions}>
-            {/* Search Input — hidden on mobile to prevent header overflow */}
-            {(activeChannelId || activeDMUserId) && !isMobile && (
+            {/* Search Input */}
+            {(activeChannelId || activeDMUserId) && (
               <div style={styles.searchBox}>
-                <Search size={14} color="var(--text-muted)" />
+                <Search size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
                 <input
                   type="text"
-                  placeholder="Search in this chat..."
-                  style={styles.searchInput}
+                  placeholder={isMobile ? "Search..." : "Search in this chat..."}
+                  style={{
+                    ...styles.searchInput,
+                    width: isMobile ? '70px' : '140px'
+                  }}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                {searchQuery && <X size={14} color="var(--text-muted)" style={{ cursor: 'pointer' }} onClick={() => setSearchQuery('')} />}
+                {searchQuery && <X size={14} color="var(--text-muted)" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={() => setSearchQuery('')} />}
               </div>
             )}
 
@@ -2627,6 +3050,37 @@ export default function KikoShell() {
             {(activeServerId || activeDMUserId) ? (
               // Messaging View
               <div style={styles.chatThreadWrapper}>
+                {syncSpotifyUrl && (
+                  <div style={{
+                    background: '#111',
+                    borderBottom: '1.5px solid #1db954',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    zIndex: 10
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#1db954', fontWeight: '700' }}>
+                      <span>🟢 Sync Listening:</span>
+                      <iframe 
+                        src={syncSpotifyUrl} 
+                        width="250" 
+                        height="80" 
+                        frameBorder="0" 
+                        allowtransparency="true" 
+                        allow="encrypted-media"
+                        style={{ borderRadius: '6px', height: '36px' }}
+                      />
+                    </div>
+                    <button 
+                      onClick={() => setSyncSpotifyUrl(null)}
+                      style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', cursor: 'pointer', fontSize: '0.74rem' }}
+                    >
+                      ✕ Close
+                    </button>
+                  </div>
+                )}
                 {/* Scrollable messages thread */}
                 <div style={styles.messagesScroll}>
                   {filteredChatHistory.length === 0 ? (
@@ -2739,7 +3193,7 @@ export default function KikoShell() {
                       return (
                         <div
                           key={msg.id}
-                          className="messageRow"
+                          className="messageRow message-card-wrapper"
                           style={{ alignItems: isOwn ? 'flex-end' : 'flex-start' }}
                         >
                           {/* Reply reference banner */}
@@ -2814,6 +3268,13 @@ export default function KikoShell() {
                                     onMove={(r, c) => handleGameMove(msg.id, r, c, 'Gomoku')}
                                     currentUserId={currentUser?.id}
                                   />
+                                ) : msg.content.includes('Memory-Match') ? (
+                                  <MemoryMatchWidget
+                                    startMsgId={msg.id}
+                                    chatHistory={filteredChatHistory}
+                                    onMove={(r, c) => handleGameMove(msg.id, r, c, 'Memory-Match')}
+                                    currentUserId={currentUser?.id}
+                                  />
                                 ) : (
                                   <TicTacToeWidget
                                     startMsgId={msg.id}
@@ -2824,12 +3285,9 @@ export default function KikoShell() {
                                 )
                               ) : msg.content?.startsWith('[GAME_MOVE]') ? null : (
                                 <div style={{ position: 'relative', maxWidth: '100%' }}>
-                                  {/* Floating action overlay — OUTSIDE bubble so text isn't covered */}
-                                  <div
-                                    className="message-actions-overlay msgActionsHover"
-                                    style={{ display: 'none', top: '-24px', right: isOwn ? '0px' : 'auto', left: isOwn ? 'auto' : '0px' }}
-                                  >
-                                    <button className="msg-action-btn" onClick={() => setReplyMessage(msg)} title="Reply">
+                                  {/* Floating action overlay */}
+                                  <div className="message-floating-actions">
+                                    <button className="message-action-btn" onClick={() => setReplyMessage(msg)} title="Reply">
                                       <CornerUpLeft size={13} />
                                     </button>
                                     {['❤️','😂','🔥','👍','🚀'].map(emo => (
@@ -2846,7 +3304,7 @@ export default function KikoShell() {
                                   </div>
                                   {/* The actual bubble wrapped with explicit delete button */}
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isOwn ? 'row-reverse' : 'row', maxWidth: '100%' }}>
-                                    <div className={isOwn ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}>
+                                    <div className={isOwn ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'} style={msg.status === 'error' ? { opacity: 0.6, border: '1px dashed #ef4444' } : msg.status === 'sending' ? { opacity: 0.75 } : {}}>
                                       <div style={{ ...styles.msgText, color: '#fff', lineHeight: 1.45, position: 'relative', paddingBottom: '14px', minWidth: '70px' }}>
                                         <div style={{ wordBreak: 'break-word', marginRight: isOwn ? '15px' : '0px' }}>
                                           {msg.content?.startsWith('[STICKER]') ? (
@@ -2861,7 +3319,70 @@ export default function KikoShell() {
                                               alt="GIF" 
                                               style={{ maxWidth: '240px', maxHeight: '180px', borderRadius: '12px', objectFit: 'cover', display: 'block', margin: '4px 0' }} 
                                             />
-                                          ) : (
+                                          ) : getSpotifyEmbedUrl(msg.content) ? (() => {
+                                            const spotifyUrl = getSpotifyEmbedUrl(msg.content);
+                                            return (
+                                              <div style={{
+                                                background: '#121212',
+                                                border: '1.5px solid #1db954',
+                                                borderRadius: '12px',
+                                                padding: '12px',
+                                                width: '280px',
+                                                maxWidth: '100%',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '8px',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                                                margin: '6px 0',
+                                                pointerEvents: 'auto'
+                                              }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ fontSize: '1rem' }}>🎵</span>
+                                                    <span style={{ fontWeight: '800', color: '#1db954', fontSize: '0.74rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Spotify Sync</span>
+                                                  </div>
+                                                  <button 
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      const activeKey = activeChannelId 
+                                                        ? `channel:${activeChannelId}` 
+                                                        : `dm:${[currentUser?.id, activeDMUserId].sort().join('-')}`;
+                                                      if (socketRef.current) {
+                                                        socketRef.current.emit('spotify_sync', {
+                                                          room: activeKey,
+                                                          embedUrl: spotifyUrl,
+                                                          trackName: 'Shared Spotify Track',
+                                                          senderName: currentUser?.displayName || currentUser?.username
+                                                        });
+                                                      }
+                                                      showToast('🎵 Synced song status with room!', 'success');
+                                                    }}
+                                                    style={{
+                                                      background: '#1db954',
+                                                      border: 'none',
+                                                      borderRadius: '12px',
+                                                      color: '#fff',
+                                                      fontSize: '0.64rem',
+                                                      fontWeight: '700',
+                                                      padding: '3px 8px',
+                                                      cursor: 'pointer'
+                                                    }}
+                                                  >
+                                                    Sync Play
+                                                  </button>
+                                                </div>
+                                                <iframe 
+                                                  src={spotifyUrl} 
+                                                  width="100%" 
+                                                  height="80" 
+                                                  frameBorder="0" 
+                                                  allowtransparency="true" 
+                                                  allow="encrypted-media"
+                                                  style={{ borderRadius: '6px', background: '#000' }}
+                                                />
+                                              </div>
+                                            );
+                                          })() : (
                                             parseMarkdown(msg.content)
                                           )}
                                         </div>
@@ -2871,7 +3392,7 @@ export default function KikoShell() {
                                           right: '2px',
                                           display: 'flex',
                                           alignItems: 'center',
-                                          gap: '2px',
+                                          gap: '4px',
                                           userSelect: 'none',
                                           pointerEvents: 'none'
                                         }}>
@@ -2879,13 +3400,36 @@ export default function KikoShell() {
                                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                                           </span>
                                           {isOwn && (() => {
+                                            if (msg.status === 'sending') {
+                                              return <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)' }}>⌛</span>;
+                                            }
+                                            if (msg.status === 'error') {
+                                              return (
+                                                <span 
+                                                  onClick={() => {
+                                                    const chatKey = activeChannelId 
+                                                      ? `channel:${activeChannelId}` 
+                                                      : `dm:${[currentUser?.id, activeDMUserId].sort().join('-')}`;
+                                                    setMessages(prev => {
+                                                      const list = prev[chatKey] || [];
+                                                      return { ...prev, [chatKey]: list.filter(m => m.id !== msg.id) };
+                                                    });
+                                                    sendMessage(msg.content);
+                                                  }}
+                                                  style={{ color: '#ef4444', fontSize: '0.7rem', cursor: 'pointer', pointerEvents: 'auto', fontWeight: 'bold' }} 
+                                                  title="Failed to send. Click to retry."
+                                                >
+                                                  ⚠️
+                                                </span>
+                                              );
+                                            }
                                             // SVG single tick
                                             const SingleTick = ({ color }) => (
                                               <svg width="10" height="8" viewBox="0 0 10 8" fill="none" style={{ display: 'block', flexShrink: 0 }}>
                                                 <path d="M1 4L3.5 6.5L9 1" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                                               </svg>
                                             );
-                                            // SVG double tick (two overlapping checks)
+                                            // SVG double tick
                                             const DoubleTick = ({ color }) => (
                                               <svg width="15" height="8" viewBox="0 0 15 8" fill="none" style={{ display: 'block', flexShrink: 0 }}>
                                                 <path d="M1 4L3.5 6.5L9 1" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -3190,10 +3734,14 @@ export default function KikoShell() {
                   {/* Emoji/Sticker/GIF Drawer */}
                   {emojiDrawerOpen && (
                     <div style={{
-                      position: 'absolute', bottom: '72px', right: '20px',
+                      position: 'absolute',
+                      bottom: '72px',
+                      right: isMobile ? '10px' : '20px',
+                      left: isMobile ? '10px' : 'auto',
+                      width: isMobile ? 'calc(100% - 20px)' : '320px',
+                      height: '400px',
                       background: '#313338', border: '1px solid rgba(255,255,255,0.08)',
                       borderRadius: '14px', zIndex: 200,
-                      width: '320px', height: '400px',
                       boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
                       backdropFilter: 'blur(16px)',
                       display: 'flex', flexDirection: 'column',
@@ -3242,13 +3790,14 @@ export default function KikoShell() {
                             />
                             <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', paddingRight: '4px' }}>
                               {[
-                                '😀','😂','🥰','😍','🤩','😎','🥳','😭',
-                                '👍','❤️','🔥','🚀','🎉','💯','⭐','✨',
-                                '😮','😢','🙄','😤','👀','💀','🙏','🤝',
-                                '🍕','🎮','🎵','💻','📱','🌟','💎','👑',
-                                '🦖','🐱','🐶','🐸','🦄','🍩','🍺','🚀',
-                                '👾','🎨','🎯','🎭','🎬','🎧','🎪','🎷',
-                                '🚗','✈️','🌍','🏔️','⏰','💡','💣','🔒'
+                                '😀','😂','🥰','😍','🤩','😎','🥳','😭','😤','🤬','😱','🤯','😴','😷','👿','👽',
+                                '👍','👎','❤️','💔','🔥','🚀','🎉','💯','⭐','✨','💡','💥','🔔','💬','💭','🧠',
+                                '😮','😢','🙄','👀','💀','🙏','🤝','👏','🙌','✍️','💪','🏃','🧗','🧘','🏄','🚴',
+                                '🍕','🍔','🍟','🍿','🍩','🍪','🍫','🍺','🍷','☕','🍹','🧁','🍧','🍙','🍣','🍜',
+                                '🎮','🎵','🎧','💻','📱','📺','📷','🎙️','🎸','🎹','🎨','🎯','🎳','🛹','⚽','🏀',
+                                '🐱','🐶','🐸','🦄','🦊','🦁','🐯','🐨','🐼','🐙','🦖','Scorpion','🦋','🐝','🪴','🌸',
+                                '🌍','🏔️','🌋','🏖️','🏙️','🌃','🌅','🌈','☀️','🌧️','❄️','🚗','✈️','🚀','🛸','👽',
+                                '⏰','💡','💣','🔒','🔓','🔑','🛡️','💰','💎','👑','💼','📌','📅','🗑️'
                               ].filter(e => emojiSearch ? e.toLowerCase().includes(emojiSearch.toLowerCase()) : true).map(emoji => (
                                 <button
                                   key={emoji}
@@ -3271,29 +3820,50 @@ export default function KikoShell() {
                         )}
 
                         {pickerTab === 'sticker' && (
-                          <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', paddingRight: '4px' }}>
-                            {STICKERS.map(s => (
-                              <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => {
-                                  playSFX('pop');
-                                  sendMessage(`[STICKER] ${s.url}`);
-                                  setEmojiDrawerOpen(false);
-                                }}
-                                style={{
-                                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
-                                  borderRadius: '8px', padding: '8px', cursor: 'pointer',
-                                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                                  transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                              >
-                                <img src={s.url} alt={s.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
-                                <div style={{ fontSize: '0.64rem', color: 'rgba(255,255,255,0.5)' }}>{s.name}</div>
-                              </button>
-                            ))}
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                            <input
+                              type="text"
+                              placeholder="Search Stickers on Tenor..."
+                              value={stickerSearchQuery}
+                              onChange={e => {
+                                setStickerSearchQuery(e.target.value);
+                                fetchStickers(e.target.value);
+                              }}
+                              style={{
+                                width: '100%', height: '32px', background: '#1e1f22',
+                                border: 'none', borderRadius: '6px', color: '#fff',
+                                padding: '0 10px', fontSize: '0.82rem', marginBottom: '10px',
+                                outline: 'none'
+                              }}
+                            />
+                            {loadingStickers ? (
+                              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem' }}>Loading Stickers...</div>
+                            ) : (
+                              <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', paddingRight: '4px' }}>
+                                {stickers.map(s => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onClick={() => {
+                                      playSFX('pop');
+                                      sendMessage(`[STICKER] ${s.url}`);
+                                      setEmojiDrawerOpen(false);
+                                    }}
+                                    style={{
+                                      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)',
+                                      borderRadius: '8px', padding: '8px', cursor: 'pointer',
+                                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                                      transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                                  >
+                                    <img src={s.url} alt={s.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+                                    <div style={{ fontSize: '0.64rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center' }}>{s.name}</div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -3389,7 +3959,8 @@ export default function KikoShell() {
                                 { name: 'Tic-Tac-Toe', label: '❌ Tic-Tac-Toe', color: '#a78bfa' },
                                 { name: 'Connect-Four', label: '🔴 Connect Four', color: '#00d2ff' },
                                 { name: 'Rock-Paper-Scissors', label: '🪨 Rock Paper Scissors', color: '#f472b6' },
-                                { name: 'Gomoku', label: '⚫ Gomoku (4-in-a-row)', color: '#10b981' }
+                                { name: 'Gomoku', label: '⚫ Gomoku (4-in-a-row)', color: '#10b981' },
+                                { name: 'Memory-Match', label: '🧠 Memory Match', color: '#d946ef' }
                               ].map(game => (
                                 <button
                                   key={game.name}
@@ -3472,22 +4043,20 @@ export default function KikoShell() {
                             <Mic size={18} />
                           </button>
                         )}
-                        {/* Emoji picker toggle — hidden on mobile */}
-                        {!isMobile && (
-                          <button
-                            type="button"
-                            title="Emoji Picker"
-                            onClick={() => { setEmojiDrawerOpen(v => !v); playSFX('click'); }}
-                            style={{
-                              background: emojiDrawerOpen ? 'rgba(0,210,255,0.15)' : 'transparent',
-                              border: 'none', cursor: 'pointer', padding: '4px 6px',
-                              fontSize: '1.1rem', borderRadius: '6px', transition: 'all 0.15s',
-                              flexShrink: 0
-                            }}
-                          >
-                            😀
-                          </button>
-                        )}
+                        {/* Emoji picker toggle */}
+                        <button
+                          type="button"
+                          title="Emoji Picker"
+                          onClick={() => { setEmojiDrawerOpen(v => !v); playSFX('click'); }}
+                          style={{
+                            background: emojiDrawerOpen ? 'rgba(0,210,255,0.15)' : 'transparent',
+                            border: 'none', cursor: 'pointer', padding: '4px 6px',
+                            fontSize: '1.1rem', borderRadius: '6px', transition: 'all 0.15s',
+                            flexShrink: 0
+                          }}
+                        >
+                          😀
+                        </button>
                         {/* Send */}
                         {(chatInput || selectedFile) && (
                           <button type="submit" style={{ ...styles.sendSubmitBtn, flexShrink: 0 }} onClick={() => playSFX('click')}>
@@ -3984,6 +4553,59 @@ export default function KikoShell() {
                           </div>
                         </>
                       )}
+
+                      {/* Connections Section */}
+                      <div style={styles.profileCardDivider} />
+                      <h4 style={styles.profileCardSubLabel}>Connections</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', marginBottom: '12px' }}>
+                        {/* Spotify Connection Card */}
+                        <div style={{
+                          background: 'rgba(30, 215, 96, 0.1)',
+                          border: '1px solid rgba(30, 215, 96, 0.3)',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          position: 'relative'
+                        }}>
+                          <div style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            background: '#1ed760', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '1.2rem', color: '#fff'
+                          }}>
+                            🎵
+                          </div>
+                          <div style={{ flex: 1, overflow: 'hidden' }}>
+                            <div style={{ fontWeight: '700', fontSize: '0.82rem', color: '#fff' }}>Spotify</div>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Connected as @{activeUserDetail.username}</div>
+                          </div>
+                          <span style={{ fontSize: '0.62rem', background: '#1ed760', color: '#000', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold' }}>ACTIVE</span>
+                        </div>
+
+                        {/* GitHub Connection Card */}
+                        <div style={{
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '10px',
+                          padding: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                        }}>
+                          <div style={{
+                            width: '32px', height: '32px', borderRadius: '50%',
+                            background: '#24292e', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '1.2rem', color: '#fff'
+                          }}>
+                            🐙
+                          </div>
+                          <div style={{ flex: 1, overflow: 'hidden' }}>
+                            <div style={{ fontWeight: '700', fontSize: '0.82rem', color: '#fff' }}>GitHub</div>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Connected as @{activeUserDetail.username}99</div>
+                          </div>
+                        </div>
+                      </div>
 
                       <div style={styles.profileCardDivider} />
 

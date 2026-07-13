@@ -3,8 +3,8 @@ FROM node:20-bullseye-slim
 WORKDIR /app
 
 # Copy package config and prisma schema
-COPY package*.json ./
-COPY prisma ./prisma/
+COPY website/backend/package*.json ./
+COPY website/backend/prisma ./prisma/
 
 # Install dependencies
 RUN npm install --legacy-peer-deps
@@ -13,7 +13,7 @@ RUN npm install --legacy-peer-deps
 RUN npx prisma generate
 
 # Copy source code
-COPY src ./src
+COPY website/backend/src ./src
 
 # Create uploads folder
 RUN mkdir -p uploads

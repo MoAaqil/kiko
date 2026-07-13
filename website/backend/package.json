@@ -6,6 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "prisma generate && nodemon src/server.js",
+    "build": "prisma generate",
     "start": "prisma generate && node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma db push",

@@ -3,13 +3,13 @@ import { useApp } from '../context/AppContext.jsx';
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, VolumeX,
   Monitor, MonitorOff, Maximize2, Minimize2, Users, Wifi,
-  Settings, ChevronUp, ChevronDown
+  Settings, ChevronUp, ChevronDown, Eye, EyeOff
 } from 'lucide-react';
 
 /* ── Bind MediaStream to a <video> element reliably ─────────────── */
 function VideoTile({
   stream, muted = false, username, streamType, isSelf = false,
-  isActive = false, isPip = false, style: extraStyle = {}
+  isActive = false, isPip = false, style: extraStyle = {}, onHide
 }) {
   const { selectedOutputDeviceId } = useApp();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -121,6 +121,37 @@ function VideoTile({
         </div>
       )}
 
+      {/* Hide View Button */}
+      {onHide && (
+        <button
+          className="rtc-tile-hide-btn"
+          style={{
+            position: 'absolute',
+            top: '6px',
+            right: isPip ? '6px' : '36px',
+            background: 'rgba(0, 0, 0, 0.65)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            cursor: 'pointer',
+            zIndex: 15,
+            transition: 'background 0.2s',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onHide();
+          }}
+          title="Hide self view"
+        >
+          <EyeOff size={12} />
+        </button>
+      )}
+
       {/* Fullscreen button — only on main tiles, not PiP */}
       {hasVideo && !isPip && (
         <button
@@ -226,6 +257,17 @@ export default function WebRTCCall() {
   const [showSettings, setShowSettings] = useState(false);
   const [theaterMode, setTheaterMode] = useState(false);
 
+  // Responsive / Mobile detection & local visibility states
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [hideSelfView, setHideSelfView] = useState(false);
+  const [hideParticipantStrip, setHideParticipantStrip] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Call timer
   useEffect(() => {
     if (!callRoomId) { setElapsed(0); return; }
@@ -272,7 +314,7 @@ export default function WebRTCCall() {
   const focusedScreenShare = localScreenShare || remoteScreenShare || null;
   const secondaryTiles = focusedScreenShare
     ? [
-        ...(localStream && !localScreenShare ? [{
+        ...(localStream && !localScreenShare && !hideSelfView ? [{
           socketId: 'local-self',
           stream: localStream,
           username: currentUser?.displayName || currentUser?.username || 'You',
@@ -368,7 +410,38 @@ export default function WebRTCCall() {
                 isSelf={focusedScreenShare.isSelf}
                 isActive={true}
               />
+
+              {/* Floating Toggle Participant Strip Button */}
               {secondaryTiles.length > 0 && (
+                <button
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'rgba(10, 11, 14, 0.75)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '20px',
+                    padding: '6px 12px',
+                    color: '#fff',
+                    fontSize: '0.72rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    zIndex: 20,
+                    backdropFilter: 'blur(8px)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    transition: 'all 0.2s',
+                  }}
+                  onClick={() => setHideParticipantStrip(prev => !prev)}
+                >
+                  <Users size={12} color="var(--accent-cyan)" />
+                  <span>{hideParticipantStrip ? 'Show Participants' : 'Hide Participants'}</span>
+                </button>
+              )}
+
+              {secondaryTiles.length > 0 && !hideParticipantStrip && (
                 <div style={styles.participantStrip}>
                   {secondaryTiles.map((tile) => (
                     <VideoTile
@@ -381,6 +454,7 @@ export default function WebRTCCall() {
                       isActive={!tile.isSelf || !micMuted}
                       isPip={true}
                       style={{ width: '168px', height: '108px' }}
+                      onHide={tile.isSelf ? () => setHideSelfView(true) : undefined}
                     />
                   ))}
                 </div>
@@ -427,7 +501,7 @@ export default function WebRTCCall() {
           )}
 
           {/* PiP self-view — bottom right corner when remote stream is present */}
-          {!focusedScreenShare && showLocalAsPip && (
+          {!focusedScreenShare && showLocalAsPip && !hideSelfView && (
             <div style={styles.pipWrapper}>
               <VideoTile
                 stream={localStream}
@@ -437,6 +511,7 @@ export default function WebRTCCall() {
                 isSelf={true}
                 isActive={!micMuted}
                 isPip={true}
+                onHide={() => setHideSelfView(true)}
               />
             </div>
           )}
@@ -468,6 +543,17 @@ export default function WebRTCCall() {
         >
           {isScreenShare ? <MonitorOff size={20} /> : <Monitor size={20} />}
         </CtrlBtn>
+
+        {/* Toggle Self View */}
+        {localStream && (
+          <CtrlBtn
+            onClick={() => setHideSelfView(prev => !prev)}
+            active={!hideSelfView}
+            title={hideSelfView ? 'Show self view' : 'Hide self view'}
+          >
+            {hideSelfView ? <EyeOff size={20} /> : <Eye size={20} />}
+          </CtrlBtn>
+        )}
 
         {/* Deafen */}
         <CtrlBtn onClick={toggleDeafen} active={!deafened} title={deafened ? 'Undeafen' : 'Deafen'}>

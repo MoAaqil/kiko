@@ -133,6 +133,7 @@ export function AppProvider({ children }) {
   const [messages, setMessages] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
   const [voiceChannelsState, setVoiceChannelsState] = useState({});
+  const [syncSpotifyUrl, setSyncSpotifyUrl] = useState(null);
 
   const [unreadCounts, setUnreadCounts] = useState(() => {
     try {
@@ -433,9 +434,28 @@ export function AppProvider({ children }) {
       if (!chatKey) return;
       setMessages((prev) => {
         const existing = prev[chatKey] || [];
-        const next = existing.some((m) => m.id === msg.id)
-          ? existing.map((m) => (m.id === msg.id ? msg : m))
-          : [...existing, msg];
+        const msgWithStatus = { ...msg, status: 'sent' };
+        
+        let next;
+        // 1. Match by nonce
+        if (msg.nonce && existing.some((m) => m.id === msg.nonce)) {
+          next = existing.map((m) => m.id === msg.nonce ? msgWithStatus : m);
+        }
+        // 2. Match by real ID
+        else if (existing.some((m) => m.id === msg.id)) {
+          next = existing.map((m) => m.id === msg.id ? msgWithStatus : m);
+        }
+        // 3. Fallback: match by content/user if nonce was missed
+        else {
+          const matchingOptimistic = existing.find(
+            (m) => m.id.startsWith('optimistic-') && m.content === msg.content && m.userId === msg.userId
+          );
+          if (matchingOptimistic) {
+            next = existing.map((m) => m.id === matchingOptimistic.id ? msgWithStatus : m);
+          } else {
+            next = [...existing, msgWithStatus];
+          }
+        }
         return { ...prev, [chatKey]: next };
       });
 
@@ -617,6 +637,11 @@ export function AppProvider({ children }) {
     socket.on('incoming_call', ({ roomId, caller, streamType }) => {
       console.log('[Socket] Incoming call:', roomId, caller, streamType);
       setIncomingCall({ roomId, caller, streamType });
+    });
+
+    socket.on('spotify_sync_play', ({ embedUrl, trackName, senderName }) => {
+      console.log('[Socket] Synced Spotify track play:', embedUrl, trackName, senderName);
+      setSyncSpotifyUrl(embedUrl);
     });
 
     // ── WebRTC Signaling ─────────────────────────────────────
@@ -993,12 +1018,46 @@ export function AppProvider({ children }) {
   const loadUser = async () => {
     if (!token) return;
     try {
-      const res = await apiFetch('/api/auth/me', { headers: getHeaders() });
+      let res = await apiFetch('/api/auth/me', { headers: getHeaders() });
+      if (!res.ok && (res.status === 401 || res.status === 403)) {
+        // Access token might be expired. Attempt refresh.
+        const rToken = localStorage.getItem('kiko_refresh_token') || refreshToken;
+        if (rToken) {
+          console.log('[AppContext] Access token expired/invalid, attempting refresh...');
+          try {
+            const refreshRes = await apiFetch('/api/auth/refresh', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken: rToken }),
+            });
+            if (refreshRes.ok) {
+              const refreshData = await safeJson(refreshRes);
+              setToken(refreshData.accessToken);
+              setRefreshToken(refreshData.refreshToken);
+              localStorage.setItem('kiko_token', refreshData.accessToken);
+              localStorage.setItem('kiko_refresh_token', refreshData.refreshToken);
+              
+              // Retry profile fetch with new token
+              res = await apiFetch('/api/auth/me', {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${refreshData.accessToken}`,
+                }
+              });
+            }
+          } catch (refreshErr) {
+            console.error('[AppContext] Failed to refresh token:', refreshErr);
+          }
+        }
+      }
+
       if (res.ok) {
         const data = await safeJson(res);
         setCurrentUser(data);
-      } else {
+      } else if (res.status === 401 || res.status === 403) {
         logout();
+      } else {
+        console.warn(`[AppContext] loadUser returned status ${res.status}. Session retained.`);
       }
     } catch (e) {
       console.error('Error fetching user', e);
@@ -1008,6 +1067,35 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (token) loadUser();
   }, [token]);
+
+  // Re-sync messages when socket connection is established or re-established
+  useEffect(() => {
+    if (connected && currentUserRef.current?.id) {
+      if (activeChannelId) {
+        fetchMessages(`channel:${activeChannelId}`, activeChannelId, true);
+      } else if (activeDMUserId) {
+        fetchMessages(`dm:${[currentUserRef.current.id, activeDMUserId].sort().join('-')}`, activeDMUserId, false);
+      }
+    }
+  }, [connected]);
+
+  // Keep-alive background ping to prevent free backend container from sleeping
+  useEffect(() => {
+    const pingBackend = async () => {
+      try {
+        const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        await fetch(`${apiBaseUrl}/health`);
+        console.log('[Keep-Alive] Pinged backend health status endpoint.');
+      } catch (e) {
+        console.warn('[Keep-Alive] Failed to ping backend health status:', e);
+      }
+    };
+    // Ping on load
+    pingBackend();
+    // Ping every 25 seconds
+    const interval = setInterval(pingBackend, 25000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Automated version checking for updates
   useEffect(() => {
@@ -1240,35 +1328,86 @@ export function AppProvider({ children }) {
   };
 
   const sendMessage = async (content, file, replyToId) => {
-    let fileUrl = null, fileName = null, fileType = null, fileSize = null, expiresAt = null;
+    const nonce = `optimistic-${Date.now()}-${Math.random()}`;
+    const chatKey = activeChannelId
+      ? `channel:${activeChannelId}`
+      : activeDMUserId
+        ? `dm:${[currentUser?.id, activeDMUserId].sort().join('-')}`
+        : null;
 
-    if (file) {
-      const formData = new FormData();
-      formData.append('file', file);
-      const uploadRes = await apiFetch('/api/media/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-      if (!uploadRes.ok) throw new Error('Failed to upload attachment.');
-      const uploadData = await safeJson(uploadRes);
-      fileUrl = uploadData.fileUrl;
-      fileName = uploadData.fileName;
-      fileType = uploadData.fileType;
-      fileSize = uploadData.fileSize;
-      expiresAt = uploadData.expiresAt;
+    if (!chatKey) return;
+
+    let replyTo = null;
+    if (replyToId) {
+      const existingMsgs = messages[chatKey] || [];
+      replyTo = existingMsgs.find(m => m.id === replyToId) || null;
     }
 
-    if (!content && !fileUrl) return;
+    const optimisticMsg = {
+      id: nonce,
+      content: content || (file ? `📎 Attachment: ${file.name}` : ''),
+      userId: currentUser?.id,
+      createdAt: new Date().toISOString(),
+      user: {
+        id: currentUser?.id,
+        displayName: currentUser?.displayName || currentUser?.username,
+        username: currentUser?.username,
+        avatarUrl: currentUser?.avatarUrl,
+      },
+      status: 'sending', // 'sending' | 'sent' | 'error'
+      fileUrl: file ? URL.createObjectURL(file) : null,
+      fileName: file ? file.name : null,
+      fileType: file ? file.type : null,
+      fileSize: file ? file.size : null,
+      replyTo,
+      reactions: []
+    };
 
-    if (socketRef.current) {
-      socketRef.current.emit('send_message', {
-        content,
-        replyToId,
-        fileUrl, fileName, fileType, fileSize, expiresAt,
-        ...(activeChannelId ? { channelId: activeChannelId } : { receiverId: activeDMUserId }),
-      });
-    }
+    setMessages(prev => ({
+      ...prev,
+      [chatKey]: [...(prev[chatKey] || []), optimisticMsg]
+    }));
+
+    (async () => {
+      let fileUrl = null, fileName = null, fileType = null, fileSize = null, expiresAt = null;
+      try {
+        if (file) {
+          const formData = new FormData();
+          formData.append('file', file);
+          const uploadRes = await apiFetch('/api/media/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+          });
+          if (!uploadRes.ok) throw new Error('Failed to upload attachment.');
+          const uploadData = await safeJson(uploadRes);
+          fileUrl = uploadData.fileUrl;
+          fileName = uploadData.fileName;
+          fileType = uploadData.fileType;
+          fileSize = uploadData.fileSize;
+          expiresAt = uploadData.expiresAt;
+        }
+
+        if (socketRef.current) {
+          socketRef.current.emit('send_message', {
+            content,
+            replyToId,
+            fileUrl, fileName, fileType, fileSize, expiresAt,
+            nonce,
+            ...(activeChannelId ? { channelId: activeChannelId } : { receiverId: activeDMUserId }),
+          });
+        }
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        setMessages(prev => {
+          const list = prev[chatKey] || [];
+          return {
+            ...prev,
+            [chatKey]: list.map(m => m.id === nonce ? { ...m, status: 'error' } : m)
+          };
+        });
+      }
+    })();
   };
 
   const deleteMessage = (messageId) => {
@@ -1665,6 +1804,8 @@ export function AppProvider({ children }) {
         addReaction,
         removeReaction,
         sendTypingStatus,
+        syncSpotifyUrl,
+        setSyncSpotifyUrl,
 
         // WebRTC
         callRoomId,
