@@ -5,9 +5,9 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "dev": "prisma generate && nodemon src/server.js",
-    "build": "prisma generate",
-    "start": "prisma generate && node src/server.js",
+    "dev": "node init && prisma generate && nodemon src/server.js",
+    "build": "node init && prisma generate",
+    "start": "node init && prisma generate && node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma db push",
     "prisma:seed": "node prisma/seed.js"

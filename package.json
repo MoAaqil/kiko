@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "install:all": "npm install",
-    "dev": "concurrently --kill-others \"npm run dev --workspace=website/backend\" \"npm run dev --workspace=website/frontend\"",
-    "build": "npm run build --workspace=website/frontend",
+    "dev": "node init && concurrently --kill-others \"npm run dev --workspace=website/backend\" \"npm run dev --workspace=website/frontend\"",
+    "build": "node init && npm run build --workspace=website/frontend",
     "prisma:generate": "npm run prisma:generate --workspace=website/backend",
     "prisma:migrate": "npm run prisma:migrate --workspace=website/backend",
     "prisma:seed": "npm run prisma:seed --workspace=website/backend"

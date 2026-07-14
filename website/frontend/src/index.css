@@ -361,6 +361,10 @@ h1, h2, h3, h4, h5, h6 {
   100% { box-shadow: 0 0 15px var(--glow-cyan), 0 0 25px var(--glow-purple); }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes slideInUp {
   from {
     opacity: 0;

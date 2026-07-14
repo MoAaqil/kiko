@@ -1,17 +1,17 @@
 {
   "name": "kiko-desktop",
   "version": "1.0.1",
-  "description": "Kiko — Private, Real-Time Communication Platform",
+  "description": "Kiko \u2014 Private, Real-Time Communication Platform",
   "main": "main.js",
   "author": "Kiko Team",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
-    "build:win": "node archive-old-builds.js && electron-builder --win",
-    "build:mac": "node archive-old-builds.js && electron-builder --mac",
-    "build:all": "node archive-old-builds.js && electron-builder --win --mac",
-    "build:dir": "electron-builder --dir"
+    "start": "node init && electron .",
+    "dev": "node init && electron . --dev",
+    "build:win": "node init && node archive-old-builds.js && electron-builder --win",
+    "build:mac": "node init && node archive-old-builds.js && electron-builder --mac",
+    "build:all": "node init && node archive-old-builds.js && electron-builder --win --mac",
+    "build:dir": "node init && electron-builder --dir"
   },
   "devDependencies": {
     "electron": "^43.1.0",

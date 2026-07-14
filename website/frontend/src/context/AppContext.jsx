@@ -270,32 +270,29 @@ export function AppProvider({ children }) {
     try {
       return JSON.parse(text);
     } catch (e) {
-      throw new Error(text || `Server connection error (HTTP ${res.status}).`);
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        throw new Error('The server is starting up. Please wait a moment and try again.');
+      }
+      throw new Error(text || `Server error (HTTP ${res.status}). Please try again.`);
     }
   };
 
   const apiFetch = async (url, options = {}) => {
-    // In production: VITE_BACKEND_URL = https://kiko-api.railway.app
-    // In development: http://localhost:5000
-    const directBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-    const targetUrl = url.startsWith('/') ? `${directBackendUrl}${url}` : `${directBackendUrl}/${url}`;
+    const isDev = import.meta.env.DEV;
+    // In development: hit localhost:5000 directly
+    // In production (Vercel): use relative paths so Vercel rewrites proxy to Render
+    const relativeUrl = url.startsWith('/') ? url : `/${url}`;
+    const targetUrl = isDev
+      ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}${relativeUrl}`
+      : relativeUrl;
     try {
       return await fetch(targetUrl, options);
     } catch (e) {
-      console.warn('[apiFetch Direct Connection Failed, attempting fallback]', e);
-      // Fallback: If direct connection failed (e.g. DNS block on up.railway.app or kiko-api.railway.app),
-      // retry using the relative path (Vercel rewrites proxy)
-      if (directBackendUrl.includes('railway.app')) {
-        const relativeUrl = url.startsWith('/') ? url : `/${url}`;
-        try {
-          console.log('[apiFetch Fallback] Retrying request with relative path:', relativeUrl);
-          return await fetch(relativeUrl, options);
-        } catch (fallbackErr) {
-          console.error('[apiFetch Fallback Failed]', fallbackErr);
-          throw new Error('Connection to backend failed. Please verify that the backend server is running and accessible.');
-        }
+      console.warn('[apiFetch] Fetch failed:', e.message);
+      if (e.name === 'TypeError' && e.message.toLowerCase().includes('failed to fetch')) {
+        throw new Error('Cannot reach the server. Check your internet connection or the server may be starting up.');
       }
-      throw new Error('Connection to backend failed. Please verify that the backend server is running and accessible.');
+      throw new Error('Connection to backend failed. Please try again.');
     }
   };
 

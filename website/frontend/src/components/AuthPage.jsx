@@ -41,16 +41,42 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showMockGoogleModal, setShowMockGoogleModal] = useState(false);
 
+  const [serverWakingUp, setServerWakingUp] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Parse raw errors into user-friendly messages
+  const parseError = (err) => {
+    const msg = err?.message || '';
+    if (msg.includes('waking up') || msg.includes('starting up') || msg.includes('502') || msg.includes('503') || msg.includes('504')) {
+      setServerWakingUp(true);
+      return 'The server is waking up from sleep. This may take 30–60 seconds on the first request. Please try again shortly.';
+    }
+    if (msg.includes('Cannot reach') || msg.includes('Failed to fetch') || msg.includes('Connection to backend failed') || msg.includes('NetworkError')) {
+      return 'Cannot connect to the server. Please check your internet connection and try again.';
+    }
+    if (msg.includes('Invalid credentials') || msg.includes('Invalid password') || msg.includes('not found')) {
+      return 'Incorrect email/username or password. Please try again.';
+    }
+    if (msg.includes('already exists') || msg.includes('already taken')) {
+      return 'That email or username is already registered. Try signing in instead.';
+    }
+    if (msg.includes('Firebase') || msg.includes('auth/')) {
+      return 'Authentication service error. Please try again or use email/password.';
+    }
+    return msg || 'Something went wrong. Please try again.';
+  };
+
   const handleGoogleSignIn = async () => {
     setError('');
     setMessage('');
+    setServerWakingUp(false);
     try {
-      await loginWithGoogle(); // Will either sync Firebase or throw MOCK_SIMULATION_REQUIRED
+      await loginWithGoogle();
     } catch (err) {
       if (err.message === 'MOCK_SIMULATION_REQUIRED') {
         setShowMockGoogleModal(true);
       } else {
-        setError(err.message || 'Google Sign-In failed');
+        setError(parseError(err));
       }
     }
   };
@@ -59,28 +85,61 @@ export default function AuthPage() {
     e.preventDefault();
     setError('');
     setMessage('');
+    setServerWakingUp(false);
     setLoading(true);
+
+    // Client-side validation
+    if (mode === 'login' && !username.trim()) {
+      setError('Please enter your email or username.');
+      setLoading(false);
+      return;
+    }
+    if (mode === 'login' && !password) {
+      setError('Please enter your password.');
+      setLoading(false);
+      return;
+    }
+    if (mode === 'register') {
+      if (!email || !username || !password) {
+        setError('Email, username, and password are all required.');
+        setLoading(false);
+        return;
+      }
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters.');
+        setLoading(false);
+        return;
+      }
+      if (username.length < 3) {
+        setError('Username must be at least 3 characters.');
+        setLoading(false);
+        return;
+      }
+    }
+    if (mode === 'reset' && !email) {
+      setError('Please enter your email address.');
+      setLoading(false);
+      return;
+    }
 
     try {
       if (mode === 'login') {
-        // Use emailOrUsername field (combined single field for login)
         await login(username, password);
       } else if (mode === 'register') {
-        if (!email || !username || !password) {
-          throw new Error('Email, username, and password are required.');
-        }
         await register(email, username, password, displayName);
       } else if (mode === 'reset') {
         const msg = await resetPassword(email, password);
-        setMessage(msg + ' You can now sign in.');
+        setMessage((msg || 'Password updated!') + ' You can now sign in.');
         setMode('login');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred. Please try again.');
+      setError(parseError(err));
+      setRetryCount(c => c + 1);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div style={styles.container}>
@@ -96,8 +155,20 @@ export default function AuthPage() {
           <p style={styles.subtitle}>Private, Real-Time Communication Platform</p>
         </div>
 
-        {error && <div style={styles.errorBanner}>{error}</div>}
-        {message && <div style={styles.messageBanner}>{message}</div>}
+        {serverWakingUp && (
+          <div style={styles.wakingBanner}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <div style={styles.spinner} />
+              <strong>Server is waking up...</strong>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.85 }}>
+              Render's free tier spins down after inactivity. First request may take 30–60 seconds. Please wait a moment and try again.
+            </p>
+          </div>
+        )}
+        {error && !serverWakingUp && <div style={styles.errorBanner}>⚠️ {error}</div>}
+        {message && <div style={styles.messageBanner}>✅ {message}</div>}
+
 
         <form onSubmit={handleSubmit} style={styles.form}>
           {mode === 'register' && (
@@ -517,5 +588,24 @@ const styles = {
     fontSize: '0.85rem',
     marginBottom: '18px',
     textAlign: 'center',
+  },
+  wakingBanner: {
+    background: 'rgba(255, 165, 0, 0.12)',
+    border: '1px solid rgba(255, 165, 0, 0.45)',
+    borderRadius: '10px',
+    color: '#ffa94d',
+    padding: '14px 16px',
+    fontSize: '0.85rem',
+    marginBottom: '18px',
+    lineHeight: '1.5',
+  },
+  spinner: {
+    width: '16px',
+    height: '16px',
+    border: '2px solid rgba(255, 165, 0, 0.3)',
+    borderTopColor: '#ffa94d',
+    borderRadius: '50%',
+    animation: 'spin 0.9s linear infinite',
+    flexShrink: 0,
   },
 };
