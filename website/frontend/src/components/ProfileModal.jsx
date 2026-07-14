@@ -6,6 +6,19 @@ import {
   Sparkles, Shield, Pencil, Trash2, RefreshCw
 } from 'lucide-react';
 
+const SpotifyLogo = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style={{ display: 'block' }}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14.42c-.18.28-.54.37-.82.19-2.38-1.45-5.38-1.78-8.91-.97-.32.07-.64-.14-.71-.46-.07-.32.14-.64.46-.71 3.87-.88 7.17-.51 9.8.1.28.18.37.54.18.85zm1.22-2.72c-.22.37-.7.49-1.07.26-2.72-1.67-6.87-2.15-10.08-1.18-.41.13-.85-.1-.97-.52-.13-.41.1-.85.52-.97 3.67-1.11 8.24-.57 11.35 1.34.37.22.49.7.26 1.07zm.1-2.83c-3.53-2.09-9.37-2.29-12.78-1.25-.54.16-1.1-.14-1.26-.68-.16-.54.14-1.1.68-1.26 4-1.21 10.45-1 14.51 1.41.49.29.65.92.36 1.41-.3.49-.93.65-1.42.36z"/>
+  </svg>
+);
+
+const GitHubLogo = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style={{ display: 'block' }}>
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.164 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+  </svg>
+);
+
+
 /* ═══════════════════════════════════════════════════════
    DARK GLASS DESIGN TOKENS
    ═══════════════════════════════════════════════════════ */
@@ -210,12 +223,21 @@ export default function ProfileModal({ isOpen, onClose }) {
 
   const [connections, setConnections] = useState([
     { id: 'yt',      platform: 'YouTube',  account: 'moaaqil',   emoji: '▶️', connected: true  },
-    { id: 'gh',      platform: 'GitHub',   account: 'moaaqil99', emoji: '🐙', connected: true  },
-    { id: 'sp',      platform: 'Spotify',  account: 'moaaqil',   emoji: '🎵', connected: true  },
+    { id: 'gh',      platform: 'GitHub',   account: currentUser?.githubUsername || '', emoji: '🐙', connected: !!currentUser?.githubUsername  },
+    { id: 'sp',      platform: 'Spotify',  account: currentUser?.spotifyUsername || '', emoji: '🎵', connected: !!currentUser?.spotifyUsername  },
     { id: 'tw',      platform: 'Twitch',   account: '',          emoji: '🟣', connected: false },
     { id: 'steam',   platform: 'Steam',    account: '',          emoji: '🎮', connected: false },
     { id: 'discord', platform: 'Discord',  account: '',          emoji: '💬', connected: false },
   ]);
+
+  useEffect(() => {
+    setConnections(prev => prev.map(c => {
+      if (c.id === 'gh') return { ...c, account: currentUser?.githubUsername || '', connected: !!currentUser?.githubUsername };
+      if (c.id === 'sp') return { ...c, account: currentUser?.spotifyUsername || '', connected: !!currentUser?.spotifyUsername };
+      return c;
+    }));
+  }, [currentUser]);
+
 
   // Real audio device enumeration (Bluetooth support)
   const [audioInputDevices,  setAudioInputDevices]  = useState([]);
@@ -288,15 +310,39 @@ export default function ProfileModal({ isOpen, onClose }) {
     finally { setSaving(false); }
   };
 
-  const toggleConn = (id) => {
-    setConnections(prev => prev.map(c => {
-      if (c.id !== id) return c;
-      if (c.connected) return { ...c, connected: false, account: '' };
-      const name = prompt(`Enter your ${c.platform} username:`);
-      if (!name) return c;
-      showToast(`✓ ${c.platform} connected!`);
-      return { ...c, connected: true, account: name };
-    }));
+  const toggleConn = async (id) => {
+    if (id !== 'gh' && id !== 'sp') {
+      setConnections(prev => prev.map(c => {
+        if (c.id !== id) return c;
+        if (c.connected) return { ...c, connected: false, account: '' };
+        const name = prompt(`Enter your ${c.platform} username:`);
+        if (!name) return c;
+        showToast(`✓ ${c.platform} connected!`);
+        return { ...c, connected: true, account: name };
+      }));
+      return;
+    }
+
+    const target = connections.find(c => c.id === id);
+    if (target.connected) {
+      try {
+        const updatedFields = id === 'gh' ? { githubUsername: '' } : { spotifyUsername: '' };
+        await updateProfile(updatedFields);
+        showToast(`✓ ${target.platform} disconnected!`);
+      } catch (err) {
+        showToast(`✗ Disconnect failed: ` + (err.message || 'Unknown error'));
+      }
+    } else {
+      const name = prompt(`Enter your ${target.platform} username:`);
+      if (!name) return;
+      try {
+        const updatedFields = id === 'gh' ? { githubUsername: name } : { spotifyUsername: name };
+        await updateProfile(updatedFields);
+        showToast(`✓ ${target.platform} connected!`);
+      } catch (err) {
+        showToast(`✗ Connection failed: ` + (err.message || 'Unknown error'));
+      }
+    }
   };
 
   /* ── Sidebar nav structure ──────────────────────────── */
@@ -733,7 +779,15 @@ export default function ProfileModal({ isOpen, onClose }) {
             onMouseEnter={e => e.currentTarget.style.background = G.bg3}
             onMouseLeave={e => e.currentTarget.style.background = G.bg2}
           >
-            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>{c.emoji}</div>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+              {c.id === 'sp' ? (
+                <span style={{ color: '#1db954', display: 'flex', alignItems: 'center' }}><SpotifyLogo /></span>
+              ) : c.id === 'gh' ? (
+                <span style={{ color: '#ffffff', display: 'flex', alignItems: 'center' }}><GitHubLogo /></span>
+              ) : (
+                c.emoji
+              )}
+            </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: '600', color: G.text, fontSize: '0.88rem' }}>{c.platform}</div>
               <div style={{ fontSize: '0.74rem', color: c.connected ? G.green : G.textMut, marginTop: '2px' }}>

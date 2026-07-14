@@ -75,6 +75,8 @@ function formatUserResponse(user) {
     reducedMotion: user.reducedMotion,
     devMode: user.devMode,
     fontScale: user.fontScale,
+    spotifyUsername: user.spotifyUsername || "",
+    githubUsername: user.githubUsername || "",
     createdAt: user.createdAt,
   };
 }
@@ -208,9 +210,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email, username, and password are required.' });
     }
 
-    // Check if email is already registered
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if email is already registered (case-insensitive check via normalized email)
     const existingEmail = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
     if (existingEmail) {
       return res.status(400).json({ error: 'Email already registered.' });
@@ -237,7 +241,7 @@ router.post('/register', async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         username: finalUsername,
         displayName: displayName || username,
         passwordHash,
@@ -269,11 +273,16 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Credentials and password are required.' });
     }
 
+    const normalizedEmailOrUsername = emailOrUsername.includes('@')
+      ? emailOrUsername.trim().toLowerCase()
+      : emailOrUsername.trim();
+
+    // Query both email and username case-insensitively
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: emailOrUsername },
-          { username: emailOrUsername },
+          { email: { equals: normalizedEmailOrUsername, mode: 'insensitive' } },
+          { username: { equals: normalizedEmailOrUsername, mode: 'insensitive' } },
         ],
       },
     });
@@ -344,14 +353,16 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Email and new password are required.' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
       return res.status(404).json({ error: 'User with this email does not exist.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     await prisma.user.update({
-      where: { email },
+      where: { email: normalizedEmail },
       data: { passwordHash },
     });
 
@@ -407,10 +418,12 @@ router.post('/firebase-sync', async (req, res) => {
       return res.status(400).json({ error: 'Firebase token has no email claim.' });
     }
 
+    const firebaseEmail = email.trim().toLowerCase();
+
     // Find or create Kiko user by email
-    let user = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email: firebaseEmail } });
     if (!user) {
-      const baseUsername = email.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLowerCase();
+      const baseUsername = firebaseEmail.split('@')[0].replace(/[^a-z0-9_]/gi, '').toLowerCase();
       let uniqueUsername = baseUsername || 'user';
       let counter = 1;
       while (await prisma.user.findUnique({ where: { username: uniqueUsername } })) {
@@ -418,7 +431,7 @@ router.post('/firebase-sync', async (req, res) => {
       }
       user = await prisma.user.create({
         data: {
-          email,
+          email: firebaseEmail,
           username: uniqueUsername,
           displayName: name || uniqueUsername,
           avatarUrl: picture || `https://api.dicebear.com/7.x/bottts/svg?seed=${uniqueUsername}`,
@@ -473,7 +486,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
       displayName, avatarUrl, bannerUrl, bio, status, customStatus, pronouns,
       bannerColor, avatarDecoration, profileEffect, favoriteGame, gamesInRotation,
       autoDeleteDuration, theme, bgWallpaper, messageDensity, reducedMotion,
-      devMode, fontScale
+      devMode, fontScale, spotifyUsername, githubUsername
     } = req.body;
 
     const dataToUpdate = {};
@@ -496,6 +509,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
     if (reducedMotion !== undefined) dataToUpdate.reducedMotion = reducedMotion;
     if (devMode !== undefined) dataToUpdate.devMode = devMode;
     if (fontScale !== undefined) dataToUpdate.fontScale = parseInt(fontScale);
+    if (spotifyUsername !== undefined) dataToUpdate.spotifyUsername = spotifyUsername.trim();
+    if (githubUsername !== undefined) dataToUpdate.githubUsername = githubUsername.trim();
     dataToUpdate.lastSeen = new Date();
 
     const updatedUser = await prisma.user.update({
@@ -566,6 +581,8 @@ router.get('/users/:id', authenticateToken, async (req, res) => {
       profileEffect: targetUser.profileEffect,
       favoriteGame: targetUser.favoriteGame,
       gamesInRotation: targetUser.gamesInRotation,
+      spotifyUsername: targetUser.spotifyUsername || "",
+      githubUsername: targetUser.githubUsername || "",
       lastSeen: targetUser.lastSeen,
       joinedDate: targetUser.createdAt,
       mutualFriendsCount,

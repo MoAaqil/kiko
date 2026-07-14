@@ -10,6 +10,19 @@ import WebRTCCall from './WebRTCCall.jsx';
 import ProfileModal from './ProfileModal.jsx';
 import { KikoLogo } from './AuthPage.jsx';
 
+const SpotifyLogo = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14.42c-.18.28-.54.37-.82.19-2.38-1.45-5.38-1.78-8.91-.97-.32.07-.64-.14-.71-.46-.07-.32.14-.64.46-.71 3.87-.88 7.17-.51 9.8.1.28.18.37.54.18.85zm1.22-2.72c-.22.37-.7.49-1.07.26-2.72-1.67-6.87-2.15-10.08-1.18-.41.13-.85-.1-.97-.52-.13-.41.1-.85.52-.97 3.67-1.11 8.24-.57 11.35 1.34.37.22.49.7.26 1.07zm.1-2.83c-3.53-2.09-9.37-2.29-12.78-1.25-.54.16-1.1-.14-1.26-.68-.16-.54.14-1.1.68-1.26 4-1.21 10.45-1 14.51 1.41.49.29.65.92.36 1.41-.3.49-.93.65-1.42.36z"/>
+  </svg>
+);
+
+const GitHubLogo = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.164 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+  </svg>
+);
+
+
 const STICKERS = [
   { id: 'cat_wink', name: 'Cat Wink', url: 'https://i.pinimg.com/736x/19/46/76/1946762a5847ee6fa4c97a11b69af242.jpg' },
   { id: 'cat_happy', name: 'Cat Happy', url: 'https://i.pinimg.com/736x/76/a0/7c/76a07c962bb96a1790724881305d0194.jpg' },
@@ -4555,57 +4568,65 @@ export default function KikoShell() {
                       )}
 
                       {/* Connections Section */}
-                      <div style={styles.profileCardDivider} />
-                      <h4 style={styles.profileCardSubLabel}>Connections</h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', marginBottom: '12px' }}>
-                        {/* Spotify Connection Card */}
-                        <div style={{
-                          background: 'rgba(30, 215, 96, 0.1)',
-                          border: '1px solid rgba(30, 215, 96, 0.3)',
-                          borderRadius: '10px',
-                          padding: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          position: 'relative'
-                        }}>
-                          <div style={{
-                            width: '32px', height: '32px', borderRadius: '50%',
-                            background: '#1ed760', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '1.2rem', color: '#fff'
-                          }}>
-                            🎵
-                          </div>
-                          <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <div style={{ fontWeight: '700', fontSize: '0.82rem', color: '#fff' }}>Spotify</div>
-                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Connected as @{activeUserDetail.username}</div>
-                          </div>
-                          <span style={{ fontSize: '0.62rem', background: '#1ed760', color: '#000', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold' }}>ACTIVE</span>
-                        </div>
+                      {(activeUserDetail.spotifyUsername || activeUserDetail.githubUsername) && (
+                        <>
+                          <div style={styles.profileCardDivider} />
+                          <h4 style={styles.profileCardSubLabel}>Connections</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', marginBottom: '12px' }}>
+                            {/* Spotify Connection Card */}
+                            {activeUserDetail.spotifyUsername && (
+                              <div className="connection-card spotify" style={{
+                                background: 'rgba(30, 215, 96, 0.07)',
+                                border: '1px solid rgba(30, 215, 96, 0.2)',
+                                borderRadius: '10px',
+                                padding: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                position: 'relative'
+                              }}>
+                                <div style={{
+                                  width: '32px', height: '32px', borderRadius: '50%',
+                                  background: '#1db954', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: '#fff', flexShrink: 0
+                                }}>
+                                  <SpotifyLogo />
+                                </div>
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                  <div style={{ fontWeight: '700', fontSize: '0.82rem', color: '#fff' }}>Spotify</div>
+                                  <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Connected as @{activeUserDetail.spotifyUsername}</div>
+                                </div>
+                                <span style={{ fontSize: '0.58rem', background: '#1db954', color: '#000', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold' }}>ACTIVE</span>
+                              </div>
+                            )}
 
-                        {/* GitHub Connection Card */}
-                        <div style={{
-                          background: 'rgba(255, 255, 255, 0.04)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          borderRadius: '10px',
-                          padding: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                        }}>
-                          <div style={{
-                            width: '32px', height: '32px', borderRadius: '50%',
-                            background: '#24292e', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '1.2rem', color: '#fff'
-                          }}>
-                            🐙
+                            {/* GitHub Connection Card */}
+                            {activeUserDetail.githubUsername && (
+                              <div className="connection-card github" style={{
+                                background: 'rgba(255, 255, 255, 0.04)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '10px',
+                                padding: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                              }}>
+                                <div style={{
+                                  width: '32px', height: '32px', borderRadius: '50%',
+                                  background: '#24292e', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: '#fff', flexShrink: 0
+                                }}>
+                                  <GitHubLogo />
+                                </div>
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                  <div style={{ fontWeight: '700', fontSize: '0.82rem', color: '#fff' }}>GitHub</div>
+                                  <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Connected as @{activeUserDetail.githubUsername}</div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div style={{ flex: 1, overflow: 'hidden' }}>
-                            <div style={{ fontWeight: '700', fontSize: '0.82rem', color: '#fff' }}>GitHub</div>
-                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Connected as @{activeUserDetail.username}99</div>
-                          </div>
-                        </div>
-                      </div>
+                        </>
+                      )}
 
                       <div style={styles.profileCardDivider} />
 
